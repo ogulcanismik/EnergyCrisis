@@ -14,8 +14,8 @@ namespace MinistryOfPower.UI.Map
         [SerializeField] private GameTuning gameTuning;
 
         [Header("PNG art")]
-        [SerializeField] private Vector2 pngWorldSize = new Vector2(71.52f, 43.57f);
-        [SerializeField] private Vector2 pngWorldOffset = new Vector2(11.29f, 2.06f);
+        [SerializeField] private Vector2 pngWorldSize = new Vector2(88.35f, 53.82f);
+        [SerializeField] private Vector2 pngWorldOffset = new Vector2(11.50f, 3.45f);
         [SerializeField] private float artHeight = UsaMapLayout.ArtHeight;
 
         [Header("Camera")]

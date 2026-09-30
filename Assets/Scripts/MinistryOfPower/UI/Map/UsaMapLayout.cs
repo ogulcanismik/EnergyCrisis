@@ -27,16 +27,16 @@ namespace MinistryOfPower.UI.Map
         /// North America map art (3544×2159). Ocean is baked into the PNG —
         /// no separate MapOcean backdrop. CONUS topo is left-biased in the frame;
         /// <see cref="ArtWorldSize"/> / <see cref="ArtWorldCenter"/> are width-matched
-        /// so painted CONUS ≈ collider E–W span (N–S is shorter due to geographic aspect).
+        /// so painted CONUS ≈ collider E–W span (N–S is slightly short vs AABB height).
         /// </summary>
         public const string PrototypeArtPath = "Assets/Art/Map/north-america.png";
         public static bool UsePrototypeArt = true;
-        /// <summary>PPU so 3544px width ≈ <see cref="ArtWorldSize"/>.x (3544/71.52).</summary>
-        public const float PrototypeArtPixelsPerUnit = 49.55f;
+        /// <summary>PPU so 3544px width ≈ <see cref="ArtWorldSize"/>.x (3544/88.35).</summary>
+        public const float PrototypeArtPixelsPerUnit = 40.11f;
         /// <summary>World XZ size of the full PNG (~1.64:1). Width-matched to CONUS colliders.</summary>
-        public static readonly Vector2 ArtWorldSize = new Vector2(71.52f, 43.57f);
-        /// <summary>World XZ center — shifted so left-biased CONUS lands on collider centroids.</summary>
-        public static readonly Vector2 ArtWorldCenter = new Vector2(11.29f, 2.06f);
+        public static readonly Vector2 ArtWorldSize = new Vector2(88.35f, 53.82f);
+        /// <summary>World XZ center — CONUS left-biased; nudged north so paint matches pick meshes.</summary>
+        public static readonly Vector2 ArtWorldCenter = new Vector2(11.50f, 3.45f);
         public const float ArtHeight = -0.01f;
         /// <summary>Art shows Alaska as a navy silhouette — keep invisible pick inset.</summary>
         public const bool AlaskaPickEnabled = true;
@@ -109,7 +109,8 @@ namespace MinistryOfPower.UI.Map
                 FullName = "California",
                 Region = RegionId.Desert,
                 Fill = new Color(0.544f, 0.458f, 0.355f, 1f),
-                Ring = new[] { new Vector2(-11.55f, 2.45f), new Vector2(-7.78f, 2.45f), new Vector2(-7.78f, -2.65f), new Vector2(-11.55f, -2.65f) }
+                // East edge clipped so CA centroid is not inside NV's AABB (shared Sierra border).
+                Ring = new[] { new Vector2(-11.55f, 2.45f), new Vector2(-9.90f, 2.45f), new Vector2(-9.90f, -2.65f), new Vector2(-11.55f, -2.65f) }
             },
             new StatePoly
             {
@@ -141,7 +142,7 @@ namespace MinistryOfPower.UI.Map
                 FullName = "Florida",
                 Region = RegionId.Coast,
                 Fill = new Color(0.384f, 0.458f, 0.565f, 1f),
-                Ring = new[] { new Vector2(3.37f, -4.02f), new Vector2(6.15f, -4.02f), new Vector2(6.15f, -7.51f), new Vector2(3.37f, -7.51f) }
+                Ring = new[] { new Vector2(3.37f, -4.02f), new Vector2(6.90f, -4.02f), new Vector2(6.90f, -7.51f), new Vector2(3.37f, -7.51f) }
             },
             new StatePoly
             {
@@ -173,7 +174,7 @@ namespace MinistryOfPower.UI.Map
                 FullName = "Illinois",
                 Region = RegionId.North,
                 Fill = new Color(0.412f, 0.474f, 0.515f, 1f),
-                Ring = new[] { new Vector2(1.72f, 2.86f), new Vector2(3.37f, 2.86f), new Vector2(3.37f, -0.09f), new Vector2(1.72f, -0.09f) }
+                Ring = new[] { new Vector2(1.55f, 2.86f), new Vector2(3.37f, 2.86f), new Vector2(3.37f, -0.09f), new Vector2(1.55f, -0.09f) }
             },
             new StatePoly
             {
@@ -293,7 +294,7 @@ namespace MinistryOfPower.UI.Map
                 FullName = "Nevada",
                 Region = RegionId.Desert,
                 Fill = new Color(0.520f, 0.440f, 0.340f, 1f),
-                Ring = new[] { new Vector2(-9.84f, 2.52f), new Vector2(-7.65f, 2.52f), new Vector2(-7.65f, -1.23f), new Vector2(-9.84f, -1.23f) }
+                Ring = new[] { new Vector2(-9.85f, 2.70f), new Vector2(-7.65f, 2.70f), new Vector2(-7.65f, -1.23f), new Vector2(-9.85f, -1.23f) }
             },
             new StatePoly
             {
@@ -325,7 +326,8 @@ namespace MinistryOfPower.UI.Map
                 FullName = "New York",
                 Region = RegionId.Coast,
                 Fill = new Color(0.384f, 0.458f, 0.565f, 1f),
-                Ring = new[] { new Vector2(6.55f, 4.39f), new Vector2(9.44f, 4.39f), new Vector2(9.44f, 1.97f), new Vector2(6.55f, 1.97f) }
+                // South edge clipped above PA so PA centroid is not inside NY's AABB.
+                Ring = new[] { new Vector2(6.55f, 4.39f), new Vector2(9.44f, 4.39f), new Vector2(9.44f, 2.90f), new Vector2(6.55f, 2.90f) }
             },
             new StatePoly
             {
@@ -429,7 +431,7 @@ namespace MinistryOfPower.UI.Map
                 FullName = "Vermont",
                 Region = RegionId.Coast,
                 Fill = new Color(0.352f, 0.434f, 0.545f, 1f),
-                Ring = new[] { new Vector2(9.03f, 4.45f), new Vector2(9.72f, 4.45f), new Vector2(9.72f, 3.22f), new Vector2(9.03f, 3.22f) }
+                Ring = new[] { new Vector2(9.40f, 4.45f), new Vector2(9.72f, 4.45f), new Vector2(9.72f, 3.22f), new Vector2(9.40f, 3.22f) }
             },
             new StatePoly
             {

@@ -157,29 +157,32 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("panOk=").Append(panOk).AppendLine();
                 sb.Append("zoomOk=").Append(zoomOk).AppendLine();
 
-                bool pickOk = false;
-                string hitNames = "";
+                // Strict centroid → own state (catches art/collider near-misses like CA→NV, PA→NY).
+                string[] pickCodes =
+                {
+                    "CA", "NV", "AZ", "TX", "FL", "NY", "PA", "IL", "WA",
+                    "CO", "KS", "OH", "GA", "OR", "ME"
+                };
+                int pickPass = 0;
+                int pickFail = 0;
+                var pickRows = new StringBuilder();
                 if (cam != null)
                 {
-                    foreach (string code in new[] { "PA", "IL", "AZ", "TX", "CA", "NY", "FL" })
+                    foreach (string code in pickCodes)
                     {
                         Vector3 c = UsaMapLayout.Centroid(code);
-                        Vector3 origin = new Vector3(c.x, 22f, c.z);
-                        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 50f))
-                        {
-                            var region = hit.collider.GetComponentInParent<RegionMarker>();
-                            var plant = hit.collider.GetComponentInParent<PlantMarker>();
-                            if (region != null || plant != null)
-                            {
-                                pickOk = true;
-                                hitNames += (region != null ? region.StateCode : hit.collider.name) + ",";
-                            }
-                        }
+                        string hitCode = PickStateAt(c);
+                        bool hitOk = hitCode == code;
+                        if (hitOk) pickPass++;
+                        else pickFail++;
+                        pickRows.Append(code).Append("->").Append(hitCode)
+                            .Append(hitOk ? "=PASS " : "=FAIL ");
                     }
-
-                    sb.Append("centroidHits=").Append(hitNames).AppendLine();
                 }
 
+                sb.Append("centroidHits=").Append(pickRows).AppendLine();
+                sb.Append("centroidPass=").Append(pickPass).Append('/').Append(pickCodes.Length).AppendLine();
+                bool pickOk = pickFail == 0 && pickPass == pickCodes.Length;
                 sb.Append("pickOk=").Append(pickOk).AppendLine();
 
                 // Geography: west left (−X), east right (+X); FL south-east of CA.
@@ -260,6 +263,32 @@ namespace MinistryOfPower.EditorTools
             File.WriteAllText(path, body, Encoding.UTF8);
             Debug.Log(body + "\nWrote " + path);
             EditorApplication.isPlaying = false;
+        }
+
+        /// <summary>
+        /// Downward pick at a world XZ point. When AABBs overlap, prefer the smallest
+        /// state mesh (same rule as play-mode clicks).
+        /// </summary>
+        private static string PickStateAt(Vector3 worldCentroid)
+        {
+            Vector3 origin = new Vector3(worldCentroid.x, 22f, worldCentroid.z);
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, 50f);
+            RegionMarker best = null;
+            float bestArea = float.MaxValue;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var region = hits[i].collider.GetComponentInParent<RegionMarker>();
+                if (region == null || string.IsNullOrEmpty(region.StateCode)) continue;
+                Bounds b = hits[i].collider.bounds;
+                float area = b.size.x * b.size.z;
+                if (area < bestArea)
+                {
+                    bestArea = area;
+                    best = region;
+                }
+            }
+
+            return best != null ? best.StateCode : "MISS";
         }
     }
 }

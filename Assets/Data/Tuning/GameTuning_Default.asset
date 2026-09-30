@@ -33,8 +33,8 @@ MonoBehaviour:
   invertY: 0
   panDamping: 0
   zoomStep: 1.1
-  pngWorldSize: {x: 71.52, y: 43.57}
-  pngWorldOffset: {x: 11.29, y: 2.06}
+  pngWorldSize: {x: 88.35, y: 53.82}
+  pngWorldOffset: {x: 11.5, y: 3.45}
   terminatorNightAlpha: 0.72
   terminatorSoftness: 0.14
   terminatorLonSpan: 1.05

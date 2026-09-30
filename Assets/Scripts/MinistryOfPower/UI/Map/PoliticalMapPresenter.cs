@@ -40,7 +40,10 @@ namespace MinistryOfPower.UI.Map
 
         public void EnsureBuilt()
         {
-            if (_built) return;
+            if (_built && _root != null)
+                return;
+            // Rebuild if a prior edit-mode probe destroyed PoliticalMap while leaving _built set.
+            _built = false;
             BuildWorld();
             _built = true;
         }
@@ -114,6 +117,10 @@ namespace MinistryOfPower.UI.Map
             var rootGo = GameObject.Find("PoliticalMap");
             if (rootGo == null) rootGo = new GameObject("PoliticalMap");
             _root = rootGo.transform;
+
+            // Drop prior runtime children so art/collider recalibration can rebuild cleanly.
+            for (int i = _root.childCount - 1; i >= 0; i--)
+                SafeDestroy(_root.GetChild(i).gameObject);
 
             _sharedLit = new Material(Shader.Find("Universal Render Pipeline/Lit")
                                       ?? Shader.Find("Universal Render Pipeline/Unlit")

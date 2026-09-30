@@ -375,8 +375,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.MapTuning
   gameTuning: {fileID: 11400000, guid: ec13e23d822f58e48bc31909d9854af3, type: 2}
-  pngWorldSize: {x: 71.52, y: 43.57}
-  pngWorldOffset: {x: 11.29, y: 2.06}
+  pngWorldSize: {x: 88.35, y: 53.82}
+  pngWorldOffset: {x: 11.5, y: 3.45}
   artHeight: -0.01
   defaultOrthoSize: 12.5
   minOrthoSize: 4.5

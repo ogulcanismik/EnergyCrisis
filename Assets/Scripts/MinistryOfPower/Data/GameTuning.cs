@@ -90,10 +90,10 @@ namespace MinistryOfPower.Data
 
         [Header("Map — PNG art")]
         [Tooltip("World XZ size of the North America map sprite. Shared with MapTuning.")]
-        public Vector2 pngWorldSize = new Vector2(71.52f, 43.57f);
+        public Vector2 pngWorldSize = new Vector2(88.35f, 53.82f);
 
         [Tooltip("World XZ center offset of the map sprite (CONUS left-biased in the PNG).")]
-        public Vector2 pngWorldOffset = new Vector2(11.29f, 2.06f);
+        public Vector2 pngWorldOffset = new Vector2(11.50f, 3.45f);
 
         [Header("Map — Day/night terminator")]
         [Tooltip("Max opacity of the night side overlay (day side stays clear).")]

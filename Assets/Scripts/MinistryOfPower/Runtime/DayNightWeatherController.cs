@@ -44,17 +44,43 @@ namespace MinistryOfPower.Runtime
             if (targetCamera == null) targetCamera = Camera.main;
             if (targetCamera == null) return;
             Ray ray = targetCamera.ScreenPointToRay(ReadPointerScreen());
-            if (!Physics.Raycast(ray, out RaycastHit hit, 500f)) return;
+            RaycastHit[] hits = Physics.RaycastAll(ray, 500f);
+            if (hits == null || hits.Length == 0) return;
 
-            var plant = hit.collider.GetComponentInParent<PlantMarker>();
-            if (plant != null && !string.IsNullOrEmpty(plant.PlantId))
+            // Plants win over state meshes when both are under the cursor.
+            PlantMarker bestPlant = null;
+            float bestPlantDist = float.MaxValue;
+            RegionMarker bestRegion = null;
+            float bestRegionArea = float.MaxValue;
+            for (int i = 0; i < hits.Length; i++)
             {
-                PlantMarker.Select(plant.PlantId);
+                RaycastHit h = hits[i];
+                var plant = h.collider.GetComponentInParent<PlantMarker>();
+                if (plant != null && !string.IsNullOrEmpty(plant.PlantId) && h.distance < bestPlantDist)
+                {
+                    bestPlantDist = h.distance;
+                    bestPlant = plant;
+                }
+
+                var region = h.collider.GetComponentInParent<RegionMarker>();
+                if (region == null || string.IsNullOrEmpty(region.StateCode)) continue;
+                Bounds b = h.collider.bounds;
+                float area = b.size.x * b.size.z;
+                if (area < bestRegionArea)
+                {
+                    bestRegionArea = area;
+                    bestRegion = region;
+                }
+            }
+
+            if (bestPlant != null)
+            {
+                PlantMarker.Select(bestPlant.PlantId);
                 return;
             }
 
-            var region = hit.collider.GetComponentInParent<RegionMarker>();
-            if (region != null) RegionMarker.Select(region.RegionId, region.StateCode);
+            if (bestRegion != null)
+                RegionMarker.Select(bestRegion.RegionId, bestRegion.StateCode);
         }
 
         private static bool WasPrimaryClick()
