@@ -220,20 +220,17 @@ namespace MinistryOfPower.EditorTools
                 }
 
                 bool bordersOk = UsaMapLayout.UsePrototypeArt ? borders == 0 : borders >= 50;
-                // Prototype art + MapOcean sprite backdrop (ocean under land).
-                bool oceanSpriteOk = true;
-                var oceanGo = GameObject.Find("MapOcean");
-                if (oceanGo == null && GameObject.Find("PoliticalMap") != null)
+                // North America art has baked ocean — MapOcean must not appear.
+                bool oceanGone = !ocean;
+                string artSpriteName = "";
+                if (mapArtGo != null)
                 {
-                    var t = GameObject.Find("PoliticalMap").transform.Find("MapOcean");
-                    if (t != null) oceanGo = t.gameObject;
+                    var srArt = mapArtGo.GetComponent<SpriteRenderer>();
+                    if (srArt != null && srArt.sprite != null) artSpriteName = srArt.sprite.name;
                 }
-                if (UsaMapLayout.UsePrototypeArt)
-                {
-                    var osr = oceanGo != null ? oceanGo.GetComponent<SpriteRenderer>() : null;
-                    oceanSpriteOk = ocean && osr != null && osr.sprite != null;
-                }
-                bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && ocean && oceanSpriteOk);
+                bool artNameOk = !UsaMapLayout.UsePrototypeArt
+                                 || artSpriteName.IndexOf("north-america", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && oceanGone && artNameOk);
                 bool ok = map != null && camCtrl != null && political && !legacyPlane
                           && regions.Length >= UsaMapLayout.ExpectedStateCount
                           && distinctCodes >= UsaMapLayout.ExpectedStateCount
@@ -242,7 +239,9 @@ namespace MinistryOfPower.EditorTools
                           && orthoOk && panOk && zoomOk && pickOk && geoOk && artOrientOk
                           && artSpriteOk;
                 sb.Append("bordersOk=").Append(bordersOk).AppendLine();
-                sb.Append("oceanSpriteOk=").Append(oceanSpriteOk).AppendLine();
+                sb.Append("oceanGone=").Append(oceanGone).AppendLine();
+                sb.Append("artSprite=").Append(artSpriteName).AppendLine();
+                sb.Append("artNameOk=").Append(artNameOk).AppendLine();
                 sb.Append("artOk=").Append(artOk).AppendLine();
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();
                 Finish(sb.ToString());

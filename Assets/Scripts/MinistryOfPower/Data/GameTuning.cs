@@ -72,7 +72,7 @@ namespace MinistryOfPower.Data
         [Min(2f)]
         public float maxOrthoSize = 18f;
 
-        public Vector2 panBounds = new Vector2(14f, 10f);
+        public Vector2 panBounds = new Vector2(22f, 16f);
 
         [Tooltip("1 = pan distance matches pointer travel on screen (orthoSize / screen height).")]
         [Range(0.25f, 2f)]
@@ -89,21 +89,11 @@ namespace MinistryOfPower.Data
         public float zoomStep = 1.1f;
 
         [Header("Map — PNG art")]
-        [Tooltip("World XZ size of the prototype PNG quad. Shared with MapTuning.")]
-        public Vector2 pngWorldSize = new Vector2(26.2f, 19.65f);
+        [Tooltip("World XZ size of the North America map sprite. Shared with MapTuning.")]
+        public Vector2 pngWorldSize = new Vector2(71.52f, 43.57f);
 
-        [Tooltip("World XZ center offset of the PNG quad.")]
-        public Vector2 pngWorldOffset = new Vector2(-0.1f, -0.85f);
-
-        [Header("Map — Ocean backdrop")]
-        [Tooltip("World XZ size of the ocean sprite (larger than CONUS plate).")]
-        public Vector2 oceanWorldSize = new Vector2(40f, 28f);
-
-        [Tooltip("World XZ center offset of the ocean sprite.")]
-        public Vector2 oceanWorldOffset = new Vector2(-0.1f, -0.85f);
-
-        [Tooltip("SpriteRenderer sorting order for MapOcean (land map uses 0).")]
-        public int oceanSortingOrder = -10;
+        [Tooltip("World XZ center offset of the map sprite (CONUS left-biased in the PNG).")]
+        public Vector2 pngWorldOffset = new Vector2(11.29f, 2.06f);
 
         [Header("Map — Day/night terminator")]
         [Tooltip("Max opacity of the night side overlay (day side stays clear).")]

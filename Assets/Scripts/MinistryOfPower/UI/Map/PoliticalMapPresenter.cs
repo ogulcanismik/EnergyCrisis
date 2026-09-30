@@ -8,14 +8,14 @@ using MinistryOfPower.Simulation;
 namespace MinistryOfPower.UI.Map
 {
     /// <summary>
-    /// Paradox political-map presenter: prototype PNG ground + invisible 50-state pick meshes,
+    /// Paradox political-map presenter: North America PNG ground + invisible 50-state pick meshes,
     /// soft interconnects, plant pins. Presentation only — sim stays on RegionId.
+    /// Ocean is baked into the map art; no separate MapOcean backdrop.
     /// </summary>
     public sealed class PoliticalMapPresenter : MonoBehaviour
     {
         [SerializeField] private bool sunRichTint;
         [SerializeField] private Sprite prototypeMapSprite;
-        [SerializeField] private Sprite oceanMapSprite;
 
         private Transform _root;
         private Transform _plantRoot;
@@ -119,8 +119,9 @@ namespace MinistryOfPower.UI.Map
                                       ?? Shader.Find("Universal Render Pipeline/Unlit")
                                       ?? Shader.Find("Standard"));
 
-            // Ocean sits under land art (and under terminator). Always build first.
-            BuildOcean();
+            // Strip any leftover ocean backdrop from prior sessions / scenes.
+            DestroyOceanBackdrop();
+
             if (UsaMapLayout.UsePrototypeArt)
                 BuildPrototypeArt();
 
@@ -136,6 +137,17 @@ namespace MinistryOfPower.UI.Map
             DestroyIfExists("Region_Coast");
             DestroyIfExists("Region_Desert");
             DestroyIfExists("PlantIcons");
+        }
+
+        private void DestroyOceanBackdrop()
+        {
+            DestroyIfExists("MapOcean");
+            DestroyIfExists("OceanBackdrop");
+            if (_root == null) return;
+            Transform ocean = _root.Find("MapOcean");
+            if (ocean != null) SafeDestroy(ocean.gameObject);
+            Transform legacy = _root.Find("OceanBackdrop");
+            if (legacy != null) SafeDestroy(legacy.gameObject);
         }
 
         private static void DestroyIfExists(string name)
@@ -160,7 +172,7 @@ namespace MinistryOfPower.UI.Map
             Sprite sprite = prototypeMapSprite != null ? prototypeMapSprite : LoadPrototypeSprite();
             if (sprite == null)
             {
-                Debug.LogWarning("PoliticalMapPresenter: prototype map sprite missing; ocean backdrop only.");
+                Debug.LogWarning("PoliticalMapPresenter: map sprite missing at " + UsaMapLayout.PrototypeArtPath);
                 return;
             }
 
@@ -198,7 +210,7 @@ namespace MinistryOfPower.UI.Map
 #if UNITY_EDITOR
             return AssetDatabase.LoadAssetAtPath<Sprite>(UsaMapLayout.PrototypeArtPath);
 #else
-            return Resources.Load<Sprite>("Map/usa-map-prototype");
+            return Resources.Load<Sprite>("Map/north-america");
 #endif
         }
 
@@ -218,79 +230,6 @@ namespace MinistryOfPower.UI.Map
         {
             MapTuning mt = MapTuning.FindActive();
             return mt != null ? mt.ArtHeight : UsaMapLayout.ArtHeight;
-        }
-
-        private void BuildOcean()
-        {
-            Transform existing = _root != null ? _root.Find("MapOcean") : null;
-            if (existing != null) SafeDestroy(existing.gameObject);
-            // Legacy name from the coloured plane backdrop.
-            Transform legacy = _root != null ? _root.Find("OceanBackdrop") : null;
-            if (legacy != null) SafeDestroy(legacy.gameObject);
-
-            Sprite sprite = oceanMapSprite != null ? oceanMapSprite : LoadOceanSprite();
-            Vector2 size = ResolveOceanSize();
-            Vector2 center = ResolveOceanCenter();
-            int sort = ResolveOceanSortingOrder();
-
-            if (sprite == null)
-            {
-                // Fallback: tinted plane so the map never sits on a void.
-                var plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                plane.name = "MapOcean";
-                plane.transform.SetParent(_root, false);
-                plane.transform.position = new Vector3(center.x, UsaMapLayout.OceanHeight, center.y);
-                plane.transform.localScale = new Vector3(size.x / 10f, 1f, size.y / 10f);
-                ApplyColor(plane, UsaMapLayout.OceanFill(sunRichTint));
-                var col = plane.GetComponent<Collider>();
-                if (col != null) SafeDestroy(col);
-                return;
-            }
-
-            var ocean = new GameObject("MapOcean");
-            ocean.transform.SetParent(_root, false);
-            ocean.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            ocean.transform.position = new Vector3(center.x, UsaMapLayout.OceanHeight, center.y);
-
-            var sr = ocean.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = Color.white;
-            sr.sortingOrder = sort;
-            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            sr.receiveShadows = false;
-
-            // Stretch to cover OceanSize (aspect may differ from the placeholder JPG).
-            Vector2 natural = sprite.bounds.size;
-            float sx = natural.x > 0.0001f ? size.x / natural.x : 1f;
-            float sy = natural.y > 0.0001f ? size.y / natural.y : 1f;
-            ocean.transform.localScale = new Vector3(sx, sy, 1f);
-        }
-
-        private static Sprite LoadOceanSprite()
-        {
-#if UNITY_EDITOR
-            return AssetDatabase.LoadAssetAtPath<Sprite>(UsaMapLayout.OceanArtPath);
-#else
-            return Resources.Load<Sprite>("Map/ocean-placeholder");
-#endif
-        }
-
-        private static Vector2 ResolveOceanSize()
-        {
-            MapTuning mt = MapTuning.FindActive();
-            return mt != null ? mt.OceanWorldSize : UsaMapLayout.OceanSize;
-        }
-
-        private static Vector2 ResolveOceanCenter()
-        {
-            MapTuning mt = MapTuning.FindActive();
-            return mt != null ? mt.OceanWorldOffset : UsaMapLayout.OceanWorldCenter;
-        }
-
-        private static int ResolveOceanSortingOrder()
-        {
-            MapTuning mt = MapTuning.FindActive();
-            return mt != null ? mt.OceanSortingOrder : UsaMapLayout.OceanSortingOrder;
         }
 
         private void BuildStates()
@@ -332,7 +271,7 @@ namespace MinistryOfPower.UI.Map
                 var mc = go.AddComponent<MeshCollider>();
                 mc.sharedMesh = mf.sharedMesh;
 
-                // PNG has no Alaska — optional invisible inset pick; never draw fill/border/label.
+                // Art Alaska is a navy silhouette — optional invisible inset pick; never draw fill/border/label.
                 bool skipAkVisual = artMode && poly.Code == "AK";
                 bool akPickOff = poly.Code == "AK" && !UsaMapLayout.AlaskaPickEnabled;
                 if (akPickOff) mc.enabled = false;
@@ -461,12 +400,6 @@ namespace MinistryOfPower.UI.Map
         private void RebuildColors()
         {
             if (_root == null) return;
-
-            // Sprite ocean keeps its own art; only tint the legacy plane fallback.
-            Transform ocean = _root.Find("MapOcean") ?? _root.Find("OceanBackdrop");
-            if (ocean != null && ocean.GetComponent<SpriteRenderer>() == null)
-                ApplyColor(ocean.gameObject, UsaMapLayout.OceanFill(sunRichTint));
-
             if (UsaMapLayout.UsePrototypeArt) return;
 
             if (_statesRoot == null) _statesRoot = _root.Find("States");

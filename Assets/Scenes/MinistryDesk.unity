@@ -375,13 +375,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.MapTuning
   gameTuning: {fileID: 11400000, guid: ec13e23d822f58e48bc31909d9854af3, type: 2}
-  pngWorldSize: {x: 26.2, y: 19.65}
-  pngWorldOffset: {x: -0.1, y: -0.85}
+  pngWorldSize: {x: 71.52, y: 43.57}
+  pngWorldOffset: {x: 11.29, y: 2.06}
   artHeight: -0.01
   defaultOrthoSize: 12.5
   minOrthoSize: 4.5
   maxOrthoSize: 18
-  panBounds: {x: 14, y: 10}
+  panBounds: {x: 22, y: 16}
   panSensitivity: 1
   invertY: 0
   panDamping: 0
@@ -405,7 +405,7 @@ MonoBehaviour:
   zoomStep: 1.1
   minOrtho: 4.5
   maxOrtho: 18
-  panBounds: {x: 14, y: 10}
+  panBounds: {x: 22, y: 16}
   mapTuning: {fileID: 0}
 --- !u!114 &1262823391
 MonoBehaviour:
@@ -420,7 +420,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.PoliticalMapPresenter
   sunRichTint: 0
-  prototypeMapTexture: {fileID: 0}
+  prototypeMapSprite: {fileID: 0}
 --- !u!114 &1262823392
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -12,7 +12,6 @@ namespace MinistryOfPower.UI.Map
     public static class UsaMapLayout
     {
         public const float RegionHeight = 0.05f;
-        public const float OceanHeight = -0.02f;
         public const int ExpectedStateCount = 50;
 
         /// <summary>Default orthographic framing for Shell B center canvas.</summary>
@@ -24,29 +23,22 @@ namespace MinistryOfPower.UI.Map
         /// <summary>Below this ortho size (or on select), labels show full state names.</summary>
         public const float FullNameOrthoThreshold = 8.5f;
 
-        /// <summary>World XZ size of the ocean backdrop (larger than CONUS plate).</summary>
-        public static readonly Vector2 OceanSize = new Vector2(40f, 28f);
-        /// <summary>World XZ center of the ocean sprite (aligned with map art by default).</summary>
-        public static readonly Vector2 OceanWorldCenter = new Vector2(-0.1f, -0.85f);
-        public const int OceanSortingOrder = -10;
-        public const string OceanArtPath = "Assets/Art/Map/ocean-placeholder.jpg";
-        /// <summary>PPU so 2752px width ≈ <see cref="OceanSize"/>.x (2752/40).</summary>
-        public const float OceanArtPixelsPerUnit = 68.8f;
-
-        /// <summary>Prototype map art (480×360 CONUS + Hawaii; no Alaska in the PNG).</summary>
-        public const string PrototypeArtPath = "Assets/Art/Map/usa-map-prototype.png";
-        public static bool UsePrototypeArt = true;
         /// <summary>
-        /// Pixels-per-unit for the prototype sprite so 480×360 lands at
-        /// <see cref="ArtWorldSize"/> (480/26.2 ≈ 360/19.65). Keeps aspect via SpriteRenderer.
+        /// North America map art (3544×2159). Ocean is baked into the PNG —
+        /// no separate MapOcean backdrop. CONUS topo is left-biased in the frame;
+        /// <see cref="ArtWorldSize"/> / <see cref="ArtWorldCenter"/> are width-matched
+        /// so painted CONUS ≈ collider E–W span (N–S is shorter due to geographic aspect).
         /// </summary>
-        public const float PrototypeArtPixelsPerUnit = 18.32061f;
-        /// <summary>World XZ size of the full PNG (4:3). Tuned so CONUS rings sit under painted states.</summary>
-        public static readonly Vector2 ArtWorldSize = new Vector2(26.2f, 19.65f);
-        /// <summary>World XZ center of the PNG sprite.</summary>
-        public static readonly Vector2 ArtWorldCenter = new Vector2(-0.1f, -0.85f);
+        public const string PrototypeArtPath = "Assets/Art/Map/north-america.png";
+        public static bool UsePrototypeArt = true;
+        /// <summary>PPU so 3544px width ≈ <see cref="ArtWorldSize"/>.x (3544/71.52).</summary>
+        public const float PrototypeArtPixelsPerUnit = 49.55f;
+        /// <summary>World XZ size of the full PNG (~1.64:1). Width-matched to CONUS colliders.</summary>
+        public static readonly Vector2 ArtWorldSize = new Vector2(71.52f, 43.57f);
+        /// <summary>World XZ center — shifted so left-biased CONUS lands on collider centroids.</summary>
+        public static readonly Vector2 ArtWorldCenter = new Vector2(11.29f, 2.06f);
         public const float ArtHeight = -0.01f;
-        /// <summary>PNG has no Alaska — keep an invisible pick inset (no fill/border draw).</summary>
+        /// <summary>Art shows Alaska as a navy silhouette — keep invisible pick inset.</summary>
         public const bool AlaskaPickEnabled = true;
 
         public struct StatePoly
@@ -638,13 +630,6 @@ namespace MinistryOfPower.UI.Map
             cx /= (6f * area);
             cy /= (6f * area);
             return new Vector2(cx, cy);
-        }
-
-        public static Color OceanFill(bool sunRichTint)
-        {
-            return sunRichTint
-                ? new Color(0.22f, 0.32f, 0.38f, 1f)
-                : new Color(0.18f, 0.24f, 0.32f, 1f);
         }
 
         public static Color StateFill(string code, bool sunRichTint)
