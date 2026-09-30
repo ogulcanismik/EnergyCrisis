@@ -103,8 +103,9 @@ namespace MinistryOfPower.EditorTools
 
             Text date = FindText(chrome, "DateTime");
             Text tick = FindText(chrome, "Tick");
-            var pause = FindRt(chrome, "P");
-            var s1 = FindRt(chrome, "S1");
+            var spdMinus = FindRt(chrome, "SpdMinus");
+            var spdPlus = FindRt(chrome, "SpdPlus");
+            var spdLabel = FindText(chrome, "Spd");
             var timeBar = FindRt(chrome, "TimeBar");
             var side = FindGo(chrome, "SidePanel");
             var filterToggle = FindGo(chrome, "FilterToggle");
@@ -113,6 +114,7 @@ namespace MinistryOfPower.EditorTools
             var ordersPanel = FindGo(chrome, "OrdersPanel");
             var chartMix = FindGo(chrome, "Chart_Mix");
             var chartBudget = FindGo(chrome, "Chart_Budget");
+            var tabRow = FindGo(chrome, "TabRow");
             var constructionRail = FindGo(chrome, "M_Construction");
             var dealsRail = FindGo(chrome, "M_Deals");
             var cabinetRail = FindGo(chrome, "M_Cabinet");
@@ -122,6 +124,13 @@ namespace MinistryOfPower.EditorTools
             var legacyLobby = FindGo(chrome, "LobbyInfo");
             var legacyRightCab = FindGo(chrome, "RightDrawer");
             var fatEmergency = FindGo(chrome, "EmergLabel");
+            var legacyLeftRail = FindGo(chrome, "LeftRail");
+            var deskLog = FindGo(chrome, "LogPanel");
+            var deskLogLabel = FindGo(chrome, "Log");
+            var legacyBrand = FindGo(chrome, "Brand");
+            var legacyPause = FindGo(chrome, "P");
+            var legacySkip = FindGo(chrome, "D1");
+            var legacyS1 = FindGo(chrome, "S1");
             UguiMeshChart dispatchChart = null;
             if (chrome != null)
             {
@@ -139,7 +148,7 @@ namespace MinistryOfPower.EditorTools
             sb.Append("date=").Append(date != null).Append(" tick=").Append(tick != null).AppendLine();
             sb.Append("escBtn=").Append(escBtn != null).Append(" ordersPanel=").Append(ordersPanel != null).AppendLine();
             sb.Append("chartMix=").Append(chartMix != null).Append(" chartBudget=").Append(chartBudget != null).AppendLine();
-            sb.Append("leftTabs=")
+            sb.Append("tabRow=").Append(tabRow != null).Append(" leftTabs=")
                 .Append(constructionRail != null).Append('/')
                 .Append(dealsRail != null).Append('/')
                 .Append(cabinetRail != null).Append('/')
@@ -150,7 +159,23 @@ namespace MinistryOfPower.EditorTools
                 .Append(" legacyFlyout=").Append(legacyFlyout != null)
                 .Append(" legacyLobby=").Append(legacyLobby != null)
                 .Append(" legacyRightCab=").Append(legacyRightCab != null)
-                .Append(" fatEmergency=").Append(fatEmergency != null).AppendLine();
+                .Append(" fatEmergency=").Append(fatEmergency != null)
+                .Append(" legacyLeftRail=").Append(legacyLeftRail != null)
+                .Append(" deskLog=").Append(deskLog != null || deskLogLabel != null).AppendLine();
+            bool tabsHorizontal = false;
+            if (constructionRail != null && subsidiesRail != null)
+            {
+                var a = constructionRail.GetComponent<RectTransform>();
+                var b = subsidiesRail.GetComponent<RectTransform>();
+                if (a != null && b != null)
+                {
+                    float midAy = (a.anchorMin.y + a.anchorMax.y) * 0.5f;
+                    float midBy = (b.anchorMin.y + b.anchorMax.y) * 0.5f;
+                    tabsHorizontal = Mathf.Abs(midAy - midBy) < 0.02f && a.anchorMin.x < b.anchorMin.x;
+                }
+            }
+
+            sb.Append("tabsHorizontal=").Append(tabsHorizontal).AppendLine();
             sb.Append("meshChart=").Append(dispatchChart != null)
                 .Append(" dispatchActive=").Append(dispatchChart != null && dispatchChart.isActiveAndEnabled)
                 .AppendLine();
@@ -159,10 +184,17 @@ namespace MinistryOfPower.EditorTools
             bool stackOk = false;
             bool narrowOk = false;
             bool dateVisible = false;
-            if (date != null && pause != null)
+            sb.Append("spdMinus=").Append(spdMinus != null)
+                .Append(" spdPlus=").Append(spdPlus != null)
+                .Append(" spdLabel=").Append(spdLabel != null).AppendLine();
+            sb.Append("legacyBrand=").Append(legacyBrand != null)
+                .Append(" legacyPause=").Append(legacyPause != null)
+                .Append(" legacySkip=").Append(legacySkip != null)
+                .Append(" legacyS1=").Append(legacyS1 != null).AppendLine();
+            if (date != null && spdMinus != null)
             {
                 float dateY = date.rectTransform.anchorMin.y;
-                float btnY = pause.anchorMax.y;
+                float btnY = spdMinus.anchorMax.y;
                 stackOk = dateY >= btnY - 0.001f;
                 float dateW = date.rectTransform.anchorMax.x - date.rectTransform.anchorMin.x;
                 string dateSample = (date.text ?? "").Replace('\n', ' ').Trim();
@@ -172,12 +204,13 @@ namespace MinistryOfPower.EditorTools
                               && dateW >= 0.15f
                               && dateSample.Length >= 8;
                 sb.Append("dateAnchorMinY=").Append(dateY.ToString("0.000"))
-                    .Append(" pauseAnchorMaxY=").Append(btnY.ToString("0.000"))
+                    .Append(" minusAnchorMaxY=").Append(btnY.ToString("0.000"))
                     .Append(" dateAboveSpeeds=").Append(stackOk).AppendLine();
                 sb.Append("dateWidth=").Append(dateW.ToString("0.000"))
                     .Append(" dateVisible=").Append(dateVisible).AppendLine();
                 sb.Append("dateSample=").Append(dateSample).AppendLine();
                 sb.Append("tickSample=").Append(tick != null ? tick.text : "").AppendLine();
+                sb.Append("spdSample=").Append(spdLabel != null ? spdLabel.text : "").AppendLine();
             }
 
             if (timeBar != null)
@@ -189,12 +222,12 @@ namespace MinistryOfPower.EditorTools
                     .Append(" timeClusterNarrow=").Append(narrowOk).AppendLine();
             }
 
-            if (pause != null && s1 != null)
+            if (spdMinus != null)
             {
-                float btnW = pause.anchorMax.x - pause.anchorMin.x;
-                sb.Append("pauseBtnWidth=").Append(btnW.ToString("0.000"))
-                    .Append(" pauseNarrow=").Append(btnW <= 0.08f).AppendLine();
-                narrowOk = narrowOk && btnW <= 0.08f;
+                float btnW = spdMinus.anchorMax.x - spdMinus.anchorMin.x;
+                sb.Append("minusBtnWidth=").Append(btnW.ToString("0.000"))
+                    .Append(" minusNarrow=").Append(btnW <= 0.10f).AppendLine();
+                narrowOk = narrowOk && btnW <= 0.10f;
             }
 
             // Exclusive menus: Construction, then Budget chart drawer, then Construction again.
@@ -231,16 +264,21 @@ namespace MinistryOfPower.EditorTools
 
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
 
-            bool ok = date != null && tick != null && pause != null && s1 != null
+            bool ok = date != null && tick != null && spdMinus != null && spdPlus != null && spdLabel != null
                       && escBtn != null && ordersPanel != null
                       && chartMix != null && chartBudget != null
+                      && tabRow != null
                       && constructionRail != null && dealsRail != null
                       && cabinetRail != null && subsidiesRail != null
+                      && tabsHorizontal
                       && filterToggle != null && dealBrief != null
                       && stackOk && narrowOk && exclusiveOk && chartLive && dateVisible
                       && legacyReports == null && legacyFlyout == null
                       && legacyLobby == null && legacyRightCab == null
-                      && fatEmergency == null
+                      && fatEmergency == null && legacyLeftRail == null
+                      && deskLog == null && deskLogLabel == null
+                      && legacyBrand == null && legacyPause == null
+                      && legacySkip == null && legacyS1 == null
                       && Mathf.Approximately(GameClock.SecondsPerDay1x, 168f);
             sb.AppendLine(ok ? "HUD_LAYOUT_OK=True" : "HUD_LAYOUT_OK=False");
             return sb.ToString();

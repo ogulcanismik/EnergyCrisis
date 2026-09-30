@@ -206,9 +206,9 @@ namespace MinistryOfPower.UI
             }, 0.1f);
             AddMenuButton(settings.transform, "SpeedCycle", "Default speed", ref y, () =>
             {
-                int next = ((int)GameSettings.DefaultSpeed + 1) % 5;
-                if (next == 0) next = 1;
-                GameSettings.DefaultSpeed = (GameSpeed)next;
+                int mul = GameClock.PlayMultiplier(GameSettings.DefaultSpeed);
+                if (mul <= 0 || mul >= 5) GameSettings.DefaultSpeed = GameSpeed.Normal;
+                else GameSettings.DefaultSpeed = GameClock.NudgePlaySpeed(GameSettings.DefaultSpeed, +1);
                 RefreshSettings();
             }, 0.1f);
             AddMenuButton(settings.transform, "BackSettings", "Back", ref y, ShowMain, 0.1f);
@@ -269,7 +269,7 @@ namespace MinistryOfPower.UI
             _settingsBody.text =
                 "Tooltips " + (GameSettings.ShowTooltips ? "ON" : "OFF") +
                 " · Volume " + GameSettings.MasterVolume.ToString("0.0") +
-                " · Default speed " + GameSettings.DefaultSpeed;
+                " · Default speed " + GameClock.FormatPlaySpeed(GameSettings.DefaultSpeed);
         }
 
         private void ShowResignConfirm()

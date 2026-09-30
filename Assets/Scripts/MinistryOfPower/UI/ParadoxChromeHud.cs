@@ -38,7 +38,6 @@ namespace MinistryOfPower.UI
         private Text _speedText;
         private Text _panelTitle;
         private Text _panelBody;
-        private Text _logText;
         private Text _ordersBody;
         private Text _ordersToggleLabel;
         private Text _seasonBannerText;
@@ -96,7 +95,6 @@ namespace MinistryOfPower.UI
         private float _seasonBannerTimer;
         private RegionId? _openRegion;
         private readonly StringBuilder _sb = new StringBuilder(2048);
-        private readonly List<string> _log = new List<string>(48);
         private int _tooltipBudgetKey = int.MinValue;
         private int _tooltipMarginKey = int.MinValue;
         private int _tooltipCatalogKey = int.MinValue;
@@ -104,7 +102,7 @@ namespace MinistryOfPower.UI
         private MenuId _panelDirtyMenu = (MenuId)(-1);
         private bool _staticTipsAttached;
 
-        private Action _onPause, _onSlow, _onNormal, _onFast, _onVeryFast, _onStep;
+        private Action<GameSpeed> _onSetSpeed;
         private Action<string> _onBuild;
         private Action<string> _onCancelBuild;
         private Action<string> _onRetire;
@@ -159,19 +157,14 @@ namespace MinistryOfPower.UI
 
         public void Bind(
             Func<GameSession> session,
-            Action onPause, Action onSlow, Action onNormal, Action onFast, Action onVeryFast, Action onStep,
+            Action<GameSpeed> onSetSpeed,
             Action<string> onBuild, Action<string> onCancelBuild, Action<string> onRetire,
             Action<CrisisChoice> onCrisis, Action<CrisisChoice> onCabinet,
             Action onEmergencyImport, Action onPrivateReserve,
             Action onResign, Action onSystemMenu = null)
         {
             _session = session;
-            _onPause = onPause;
-            _onSlow = onSlow;
-            _onNormal = onNormal;
-            _onFast = onFast;
-            _onVeryFast = onVeryFast;
-            _onStep = onStep;
+            _onSetSpeed = onSetSpeed;
             _onBuild = onBuild;
             _onCancelBuild = onCancelBuild;
             _onRetire = onRetire;
@@ -185,11 +178,8 @@ namespace MinistryOfPower.UI
             MaybeShowFirstRunHelp();
         }
 
-        public void PushLog(string line)
-        {
-            _log.Add(line);
-            if (_log.Count > 40) _log.RemoveAt(0);
-        }
+        /// <summary>Kept for runner/session log hooks; desk log UI was removed.</summary>
+        public void PushLog(string line) { }
 
         public void InvalidateTooltipCache()
         {
@@ -207,7 +197,10 @@ namespace MinistryOfPower.UI
             if (s?.Clock == null || _dateTimeText == null) return;
 
             ApplyTimeCluster(s);
-            _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
+            if (_speedText != null)
+            {
+                _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "WIN" : GameClock.FormatPlaySpeed(s.Clock.Speed);
+            }
             _strip?.Render(s);
         }
 
@@ -246,14 +239,14 @@ namespace MinistryOfPower.UI
             _yearBody.text = report.FormatModal();
             _reportCharts?.ShowYear(report);
             _yearModal.SetActive(true);
-            _onPause?.Invoke();
+            _onSetSpeed?.Invoke(GameSpeed.Paused);
         }
 
         public void HideYearReport()
         {
             if (_yearModal != null) _yearModal.SetActive(false);
             _reportCharts?.HideYear();
-            _onNormal?.Invoke();
+            _onSetSpeed?.Invoke(GameSpeed.Normal);
         }
 
         public void ForceOpenMenu(MenuId id)
@@ -381,20 +374,13 @@ namespace MinistryOfPower.UI
                     " · Trans " + m.Transition.ToString("0") + " pts");
             }
 
-            _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
+            if (_speedText != null)
+            {
+                _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "WIN" : GameClock.FormatPlaySpeed(s.Clock.Speed);
+            }
 
             MaybeAnnounceSeason(s);
             RefreshBuildCatalogTooltips(s);
-
-            if (_logText != null)
-            {
-                _sb.Length = 0;
-                _sb.AppendLine("DESK LOG");
-                int start = Math.Max(0, _log.Count - 6);
-                for (int i = start; i < _log.Count; i++) _sb.AppendLine("· " + _log[i]);
-                _logText.text = _sb.ToString();
-            }
-
             RefreshOrdersSummary(s);
             _strip?.Render(s);
 
@@ -447,17 +433,12 @@ namespace MinistryOfPower.UI
             }
         }
 
-        private static string MapSpeedLabel(GameSpeed speed)
+        private void NudgePlaySpeed(int delta)
         {
-            switch (speed)
-            {
-                case GameSpeed.Paused: return "PAUSE";
-                case GameSpeed.Slow: return "1x";
-                case GameSpeed.Normal: return "1x";
-                case GameSpeed.Fast: return "2x";
-                case GameSpeed.VeryFast: return "5x";
-                default: return speed.ToString();
-            }
+            GameSession s = _session?.Invoke();
+            if (s?.Clock == null) return;
+            GameSpeed next = GameClock.NudgePlaySpeed(s.Clock.Speed, delta);
+            _onSetSpeed?.Invoke(next);
         }
 
         private void RefreshOrdersSummary(GameSession s)
@@ -1009,9 +990,9 @@ namespace MinistryOfPower.UI
             if (_leftPanel == null) return;
             var rt = _leftPanel.GetComponent<RectTransform>();
             if (rt == null) return;
-            float bot = _chromeBottom;
-            rt.anchorMin = new Vector2(_leftRailWidth, bot);
-            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.905f);
+            // Drawer sits under the horizontal tab chip row (tab row occupies ~0.855–0.905).
+            rt.anchorMin = new Vector2(0f, _chromeBottom);
+            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.855f);
         }
 
         private void ToggleOrders()
@@ -1046,14 +1027,10 @@ namespace MinistryOfPower.UI
         {
             GameSettings.HelpSeen = true;
             if (_helpOverlay != null) _helpOverlay.SetActive(false);
-            switch (GameSettings.DefaultSpeed)
-            {
-                case GameSpeed.Slow: _onSlow?.Invoke(); break;
-                case GameSpeed.Fast: _onFast?.Invoke(); break;
-                case GameSpeed.VeryFast: _onVeryFast?.Invoke(); break;
-                case GameSpeed.Paused: break;
-                default: _onNormal?.Invoke(); break;
-            }
+            GameSpeed start = GameSettings.DefaultSpeed;
+            if (start == GameSpeed.Paused) return;
+            if (GameClock.PlayMultiplier(start) <= 0) start = GameSpeed.Normal;
+            _onSetSpeed?.Invoke(start);
         }
 
         private void EnsureUi()
@@ -1078,17 +1055,15 @@ namespace MinistryOfPower.UI
             float scale = Mathf.Clamp(_timeControlScale, 0.6f, 1.4f);
             float timeLeft = Mathf.Clamp(1f - 0.32f * scale, 0.65f, 0.76f);
 
-            // ——— TOP BAR: brand + primary macros left; date/hour above speeds right ———
+            // ——— TOP BAR: vitals left; date/hour above − / speed / + right ———
             UiFactory.Panel(canvasGo.transform, "TopBar", new Vector2(0f, 0.905f), new Vector2(1f, 1f), bar);
-            UiFactory.Label(canvasGo.transform, "Brand", accent, 15, FontStyle.Bold,
-                new Vector2(0.008f, 0.955f), new Vector2(0.15f, 0.995f)).text = "MINISTRY OF POWER";
 
             _treasuryText = UiFactory.Label(canvasGo.transform, "Treasury", paper, 13, FontStyle.Bold,
-                new Vector2(0.008f, 0.91f), new Vector2(0.16f, 0.955f));
+                new Vector2(0.008f, 0.93f), new Vector2(0.18f, 0.995f));
             _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, 13, FontStyle.Bold,
-                new Vector2(0.16f, 0.91f), new Vector2(0.28f, 0.955f));
+                new Vector2(0.18f, 0.93f), new Vector2(0.30f, 0.995f));
             _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
-                new Vector2(0.28f, 0.91f), new Vector2(Mathf.Max(0.45f, timeLeft - 0.01f), 0.955f));
+                new Vector2(0.30f, 0.93f), new Vector2(Mathf.Max(0.48f, timeLeft - 0.01f), 0.995f));
 
             // Compact time cluster (right): date/hour/season ABOVE Pause/1x/2x/5x/Skip.
             // Scale widens/narrows the cluster, but the date row always keeps a readable span
@@ -1104,37 +1079,27 @@ namespace MinistryOfPower.UI
             _dateTimeText.verticalOverflow = VerticalWrapMode.Overflow;
             _dateTimeText.raycastTarget = false;
             _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 10, FontStyle.Bold,
-                new Vector2(peakLeft, dateTop), new Vector2(0.945f, dateBot), TextAnchor.MiddleCenter);
+                new Vector2(peakLeft, dateTop), new Vector2(0.995f, dateBot), TextAnchor.MiddleCenter);
             _tickText.raycastTarget = false;
-            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 10, FontStyle.Bold,
-                new Vector2(0.945f, dateTop), new Vector2(0.995f, dateBot), TextAnchor.MiddleCenter);
-            _speedText.raycastTarget = false;
+            // − / current speed / +  (1×…5× clamp; pause via ESC only)
             const float speedY0 = 0.908f;
             const float speedY1 = 0.952f;
-            float speedX0 = timeLeft + 0.005f;
-            float speedSlot = Mathf.Clamp(_timeSpeedSlotWidth, 0.04f, 0.10f);
-            const float speedGap = 0.003f;
-            int spdFont = Mathf.Max(9, _timeControlFontSize);
-            float daySec = GameClock.ActiveSecondsPerDay1x;
-            UiFactory.Button(canvasGo.transform, "P", "❚❚",
+            float speedX0 = timeLeft + 0.01f;
+            float speedSlot = Mathf.Clamp(_timeSpeedSlotWidth, 0.045f, 0.10f);
+            const float speedGap = 0.006f;
+            int spdFont = Mathf.Max(11, _timeControlFontSize + 1);
+            UiFactory.Button(canvasGo.transform, "SpdMinus", "−",
                 new Vector2(speedX0, speedY0), new Vector2(speedX0 + speedSlot, speedY1),
-                () => _onPause?.Invoke(), accent, ink, spdFont, "Pause");
-            UiFactory.Button(canvasGo.transform, "S1", "1x",
-                new Vector2(speedX0 + (speedSlot + speedGap), speedY0),
-                new Vector2(speedX0 + 2f * speedSlot + speedGap, speedY1),
-                () => _onNormal?.Invoke(), accent, ink, spdFont, "1× · " + daySec.ToString("0") + "s/day");
-            UiFactory.Button(canvasGo.transform, "S2", "2x",
-                new Vector2(speedX0 + 2f * (speedSlot + speedGap), speedY0),
-                new Vector2(speedX0 + 3f * speedSlot + 2f * speedGap, speedY1),
-                () => _onFast?.Invoke(), accent, ink, spdFont, "2× · ~" + (daySec / 2f).ToString("0") + "s/day");
-            UiFactory.Button(canvasGo.transform, "S5", "5x",
-                new Vector2(speedX0 + 3f * (speedSlot + speedGap), speedY0),
-                new Vector2(speedX0 + 4f * speedSlot + 3f * speedGap, speedY1),
-                () => _onVeryFast?.Invoke(), accent, ink, spdFont, "5× · ~" + (daySec / 5f).ToString("0") + "s/day");
-            UiFactory.Button(canvasGo.transform, "D1", "Skip",
-                new Vector2(speedX0 + 4f * (speedSlot + speedGap), speedY0),
-                new Vector2(0.995f, speedY1),
-                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, spdFont, "Skip +1 day (not a speed)");
+                () => NudgePlaySpeed(-1), accent, ink, spdFont, "Slower (min 1×)");
+            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, Mathf.Max(12, spdFont + 1), FontStyle.Bold,
+                new Vector2(speedX0 + speedSlot + speedGap, speedY0),
+                new Vector2(speedX0 + 2f * speedSlot + speedGap, speedY1), TextAnchor.MiddleCenter);
+            _speedText.raycastTarget = false;
+            _speedText.text = "1x";
+            UiFactory.Button(canvasGo.transform, "SpdPlus", "+",
+                new Vector2(speedX0 + 2f * speedSlot + 2f * speedGap, speedY0),
+                new Vector2(Mathf.Min(0.995f, speedX0 + 3f * speedSlot + 2f * speedGap), speedY1),
+                () => NudgePlaySpeed(+1), accent, ink, spdFont, "Faster (max 5×)");
 
             var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;
@@ -1148,19 +1113,25 @@ namespace MinistryOfPower.UI
                 new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), TextAnchor.MiddleCenter);
             _tipBanner.SetActive(false);
 
-            // ——— LEFT RAIL: exclusive tabs (Construction / Deals / Cabinet / Subsidies) ———
-            float railW = _leftRailWidth;
+            // ——— TOP-LEFT TAB CHIPS: horizontal row under vitals (exclusive) ———
             float leftMax = _leftDrawerMaxX;
             float bot = Mathf.Clamp(_chromeBottom, 0.05f, 0.12f);
-            UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, bot), new Vector2(railW, 0.905f), bar);
-            float ly = 0.88f;
-            MenuBtn(canvasGo.transform, "Construction", MenuId.Construction, ref ly, "Queue, catalog, projections");
-            MenuBtn(canvasGo.transform, "Deals", MenuId.Deals, ref ly, "Imports & private reserve");
-            MenuBtn(canvasGo.transform, "Cabinet", MenuId.Cabinet, ref ly, "PM confidence, lobby, levers");
-            MenuBtn(canvasGo.transform, "Subsidies", MenuId.Policy, ref ly, "Subsidies, freezes, reserves");
+            const float tabY0 = 0.855f;
+            const float tabY1 = 0.905f;
+            UiFactory.Panel(canvasGo.transform, "TabRow", new Vector2(0f, tabY0), new Vector2(leftMax, tabY1), bar);
+            float tx = 0.008f;
+            float tabW = (leftMax - 0.016f) / 4f;
+            TabChip(canvasGo.transform, "Construction", MenuId.Construction, ref tx, tabW, tabY0, tabY1,
+                "Queue, catalog, projections");
+            TabChip(canvasGo.transform, "Deals", MenuId.Deals, ref tx, tabW, tabY0, tabY1,
+                "Imports & private reserve");
+            TabChip(canvasGo.transform, "Cabinet", MenuId.Cabinet, ref tx, tabW, tabY0, tabY1,
+                "PM confidence, lobby, levers");
+            TabChip(canvasGo.transform, "Subsidies", MenuId.Policy, ref tx, tabW, tabY0, tabY1,
+                "Subsidies, freezes, reserves");
 
-            // Left content panel
-            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(railW, bot), new Vector2(leftMax, 0.905f), panel);
+            // Left content panel under the tab chip row
+            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(0f, bot), new Vector2(leftMax, tabY0), panel);
             _leftPanel = side.gameObject;
             _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, _hudTitleFontSize, FontStyle.Bold,
                 new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
@@ -1285,26 +1256,21 @@ namespace MinistryOfPower.UI
 
             // ——— RIGHT: ESC system + collapsible Orders summary ———
             UiFactory.Button(canvasGo.transform, "EscBtn", "ESC",
-                new Vector2(0.955f, 0.86f), new Vector2(0.995f, 0.90f),
+                new Vector2(0.955f, tabY0), new Vector2(0.995f, tabY1),
                 () => _onSystemMenu?.Invoke(), UiFactory.Hex("6B3030"), paper, 11,
                 "System menu — save / load / settings / resign");
 
             var ordersToggle = UiFactory.Button(canvasGo.transform, "OrdersToggle", "Orders ▴",
-                new Vector2(_rightDrawerMinX, 0.86f), new Vector2(0.95f, 0.90f),
+                new Vector2(_rightDrawerMinX, tabY0), new Vector2(0.95f, tabY1),
                 ToggleOrders, UiFactory.Hex("3A2E22"), accent, 11, "Build queue + timed deadlines");
             _ordersToggleLabel = ordersToggle.GetComponentInChildren<Text>();
 
             var orders = UiFactory.Panel(canvasGo.transform, "OrdersPanel",
-                new Vector2(_rightDrawerMinX, bot), new Vector2(1f, 0.855f), panel);
+                new Vector2(_rightDrawerMinX, bot), new Vector2(1f, tabY0), panel);
             _ordersPanel = orders.gameObject;
             _ordersBody = UiFactory.Label(orders.transform, "OrdersBody", paper, _hudBodyFontSize, FontStyle.Normal,
                 new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.96f), TextAnchor.UpperLeft);
             _ordersPanel.SetActive(_ordersOpen);
-
-            // Thin event log tucked under the map (not a fat chrome slab).
-            UiFactory.Panel(canvasGo.transform, "LogPanel", new Vector2(0.42f, bot), new Vector2(0.70f, bot + 0.09f), UiFactory.Hex("1A1510"));
-            _logText = UiFactory.Label(canvasGo.transform, "Log", UiFactory.Hex("D2C3A8"), 10, FontStyle.Normal,
-                new Vector2(0.425f, bot + 0.005f), new Vector2(0.695f, bot + 0.085f), TextAnchor.UpperLeft);
 
             // ——— BOTTOM-LEFT: Charts buttons + thin 24h peek ———
             UiFactory.Panel(canvasGo.transform, "Bottom", new Vector2(0f, 0f), new Vector2(1f, bot), bar);
@@ -1441,10 +1407,10 @@ namespace MinistryOfPower.UI
                 new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.96f), TextAnchor.MiddleCenter).text = "MINISTER'S BRIEF";
             UiFactory.Label(help.transform, "HB", paper, 13, FontStyle.Normal,
                 new Vector2(0.06f, 0.2f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft).text =
-                "Wireframe desk shell — map first, exclusive left tabs.\n\n" +
+                "Wireframe desk shell — map first, exclusive top-left tabs.\n\n" +
                 "· Top-left: treasury / conf / margin.\n" +
-                "· Top-right: date + hour/season/peak above Pause/1x/2x/5x/Skip.\n" +
-                "· Left: Construction / Deals / Cabinet / Subsidies (one at a time).\n" +
+                "· Under vitals: Construction / Deals / Cabinet / Subsidies chips (one at a time).\n" +
+                "· Top-right: date + hour/season/peak above − / speed / + (1×…5×).\n" +
                 "· Right: ESC system menu · Orders summary (builds + deadlines).\n" +
                 "· Bottom-left: Charts buttons open report drawers · thin 24h peek.\n" +
                 "· Bottom-right: map lenses placeholder (later).\n" +
@@ -1469,13 +1435,13 @@ namespace MinistryOfPower.UI
             x += w;
         }
 
-        private void MenuBtn(Transform parent, string label, MenuId id, ref float y, string tip = null)
+        private void TabChip(Transform parent, string label, MenuId id, ref float x, float w, float y0, float y1, string tip)
         {
-            float h = 0.055f;
+            float pad = 0.004f;
             UiFactory.Button(parent, "M_" + label, label,
-                new Vector2(0.01f, y - h), new Vector2(_leftRailWidth - 0.005f, y),
-                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11, tip);
-            y -= h + 0.01f;
+                new Vector2(x + pad, y0 + 0.006f), new Vector2(x + w - pad, y1 - 0.006f),
+                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 10, tip);
+            x += w;
         }
 
         private void ChartBtn(Transform parent, string label, MenuId id, ref float x, float w, float y0, float y1, string tip)

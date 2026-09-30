@@ -207,12 +207,11 @@ namespace MinistryOfPower.Runtime
 
             paradoxHud.Bind(
                 () => _session,
-                () => { _session.SetSpeed(GameSpeed.Paused); RefreshUi(); },
-                () => { _session.SetSpeed(GameSpeed.Slow); RefreshUi(); },
-                () => { _session.SetSpeed(GameSpeed.Normal); RefreshUi(); },
-                () => { _session.SetSpeed(GameSpeed.Fast); RefreshUi(); },
-                () => { _session.SetSpeed(GameSpeed.VeryFast); RefreshUi(); },
-                StepOneDay,
+                speed =>
+                {
+                    _session.SetSpeed(speed);
+                    RefreshUi();
+                },
                 id =>
                 {
                     _session.TryStartBuild(id, out string msg);

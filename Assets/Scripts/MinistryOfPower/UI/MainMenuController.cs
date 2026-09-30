@@ -168,12 +168,12 @@ namespace MinistryOfPower.UI
                     GameSettings.MasterVolume = v;
                     ShowSettings();
                 }, ref y, 0.12f);
-            AddBtn($"Default game speed: {GameSettings.DefaultSpeed}",
+            AddBtn($"Default game speed: {GameClock.FormatPlaySpeed(GameSettings.DefaultSpeed)}",
                 () =>
                 {
-                    int next = ((int)GameSettings.DefaultSpeed + 1) % 5;
-                    if (next == 0) next = 1; // skip paused as default
-                    GameSettings.DefaultSpeed = (GameSpeed)next;
+                    int mul = GameClock.PlayMultiplier(GameSettings.DefaultSpeed);
+                    if (mul <= 0 || mul >= 5) GameSettings.DefaultSpeed = GameSpeed.Normal;
+                    else GameSettings.DefaultSpeed = GameClock.NudgePlaySpeed(GameSettings.DefaultSpeed, +1);
                     ShowSettings();
                 }, ref y, 0.12f);
             AddBtn("Reset first-run help", () => { GameSettings.HelpSeen = false; ShowSettings(); }, ref y, 0.12f);
@@ -185,7 +185,7 @@ namespace MinistryOfPower.UI
         {
             _body.text =
                 $"Tooltips {(GameSettings.ShowTooltips ? "shown" : "hidden")} · " +
-                $"Volume {GameSettings.MasterVolume:0.0} · Default speed {GameSettings.DefaultSpeed}";
+                $"Volume {GameSettings.MasterVolume:0.0} · Default speed {GameClock.FormatPlaySpeed(GameSettings.DefaultSpeed)}";
         }
 
         private void AddBtn(string label, Action action, ref float yTop, float height = 0.12f)

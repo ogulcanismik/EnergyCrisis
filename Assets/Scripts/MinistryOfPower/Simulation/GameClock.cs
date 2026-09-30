@@ -11,10 +11,12 @@ namespace MinistryOfPower.Simulation
     public enum GameSpeed
     {
         Paused = 0,
-        Slow = 1,
-        Normal = 2,
-        Fast = 3,
-        VeryFast = 4
+        Slow = 1,       // legacy alias of 1×
+        Normal = 2,     // 1×
+        Fast = 3,       // 2×
+        VeryFast = 4,   // 5× (legacy ordinal kept for saves)
+        Fast3 = 5,      // 3×
+        Fast4 = 6       // 4×
     }
 
     /// <summary>
@@ -171,21 +173,74 @@ namespace MinistryOfPower.Simulation
 
         /// <summary>
         /// Real-time length of one in-game day.
-        /// Pause → never ticks; 1× → <see cref="ActiveSecondsPerDay1x"/>; Fast/VeryFast use tuning multipliers.
+        /// Pause → never ticks; play speeds 1×–5× divide <see cref="ActiveSecondsPerDay1x"/>.
         /// </summary>
         public static float SecondsPerDay(GameSpeed speed)
         {
             float baseDay = ActiveSecondsPerDay1x;
-            switch (speed)
-            {
-                case GameSpeed.Slow: return baseDay;                                      // 1×
-                case GameSpeed.Normal: return baseDay;                                    // 1× (default HUD button)
-                case GameSpeed.Fast: return baseDay / s_speedMultiplierFast;              // default 2×
-                case GameSpeed.VeryFast: return baseDay / s_speedMultiplierVeryFast;      // default 5×
-                default: return float.MaxValue;
-            }
+            int mul = PlayMultiplier(speed);
+            if (mul <= 0) return float.MaxValue;
+            // 2× / 5× still honor GameTuning knobs; 3× / 4× interpolate on the 1× day length.
+            if (speed == GameSpeed.Fast) return baseDay / s_speedMultiplierFast;
+            if (speed == GameSpeed.VeryFast) return baseDay / s_speedMultiplierVeryFast;
+            return baseDay / mul;
         }
 
         public static float SecondsPerHour(GameSpeed speed) => SecondsPerDay(speed) / HoursPerDay;
+
+        /// <summary>Playable HUD steps: 1×, 2×, 3×, 4×, 5× (excludes pause).</summary>
+        public static readonly GameSpeed[] PlaySpeedSteps =
+        {
+            GameSpeed.Normal,
+            GameSpeed.Fast,
+            GameSpeed.Fast3,
+            GameSpeed.Fast4,
+            GameSpeed.VeryFast
+        };
+
+        /// <summary>1–5 for play speeds; 0 when paused / unknown.</summary>
+        public static int PlayMultiplier(GameSpeed speed)
+        {
+            switch (speed)
+            {
+                case GameSpeed.Slow:
+                case GameSpeed.Normal: return 1;
+                case GameSpeed.Fast: return 2;
+                case GameSpeed.Fast3: return 3;
+                case GameSpeed.Fast4: return 4;
+                case GameSpeed.VeryFast: return 5;
+                default: return 0;
+            }
+        }
+
+        public static string FormatPlaySpeed(GameSpeed speed)
+        {
+            int mul = PlayMultiplier(speed);
+            return mul > 0 ? mul + "x" : "PAUSE";
+        }
+
+        /// <summary>Clamp-nudge along 1×…5×. From pause, + goes to 1×; − stays paused.</summary>
+        public static GameSpeed NudgePlaySpeed(GameSpeed current, int delta)
+        {
+            if (delta == 0) return current;
+            if (current == GameSpeed.Paused)
+                return delta > 0 ? GameSpeed.Normal : GameSpeed.Paused;
+
+            int idx = 0;
+            for (int i = 0; i < PlaySpeedSteps.Length; i++)
+            {
+                if (PlaySpeedSteps[i] == current ||
+                    (current == GameSpeed.Slow && PlaySpeedSteps[i] == GameSpeed.Normal))
+                {
+                    idx = i;
+                    break;
+                }
+            }
+
+            int next = idx + (delta > 0 ? 1 : -1);
+            if (next < 0) next = 0;
+            if (next >= PlaySpeedSteps.Length) next = PlaySpeedSteps.Length - 1;
+            return PlaySpeedSteps[next];
+        }
     }
 }
