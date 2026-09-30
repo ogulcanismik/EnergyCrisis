@@ -16,9 +16,9 @@ namespace MinistryOfPower.Simulation
         {
             switch (id)
             {
-                case RegionId.North: return "Northern Corridor";
-                case RegionId.Coast: return "Coastal Metro";
-                case RegionId.Desert: return "Interior / Desert";
+                case RegionId.North: return "Midwest / North";
+                case RegionId.Coast: return "Atlantic Coast";
+                case RegionId.Desert: return "Southwest Interior";
                 default: return id.ToString();
             }
         }
@@ -109,7 +109,7 @@ namespace MinistryOfPower.Simulation
             if (selected) sb.Append("  [SELECTED — builds/retire prefer here]");
             sb.Append('\n');
             sb.Append("Demand share ~").Append((share * 100f).ToString("0")).Append("%");
-            sb.Append(" (~").Append(dem.ToString("0")).Append(" MW today)\n\n");
+            sb.Append(" (~").Append(DisplayUnits.Capacity(dem)).Append(" today)\n\n");
             sb.Append("Sited plants:\n");
             AppendOwnedPlants(sb, session, id);
             sb.Append("\nAdequacy note: ").Append(note).Append('\n');
@@ -129,14 +129,14 @@ namespace MinistryOfPower.Simulation
                 if (p.IsRetired || p.Region != id) continue;
                 sb.Append(FuelIcon(p.Fuel)).Append(' ').Append(p.DisplayName)
                     .Append("  ").Append(p.Fuel)
-                    .Append("  ").Append(p.CapacityMw.ToString("0")).Append(" MW\n");
+                    .Append("  ").Append(DisplayUnits.Capacity(p.CapacityMw)).Append('\n');
                 mw += p.CapacityMw;
                 shown++;
                 if (shown >= 8) break;
             }
 
             if (shown == 0) sb.AppendLine("· Empty — order builds while this region is selected.");
-            else sb.Append("Capacity here: ").Append(mw.ToString("0")).Append(" MW\n");
+            else sb.Append("Capacity here: ").Append(DisplayUnits.Capacity(mw)).Append('\n');
         }
     }
 }

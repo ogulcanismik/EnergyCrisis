@@ -14,7 +14,7 @@ namespace MinistryOfPower.Simulation
             float dueNow = def.UpfrontCost;
             if (s.Budget < dueNow)
             {
-                message = $"Need {dueNow:0} budget (have {s.Budget:0}).";
+                message = "Need " + DisplayUnits.Money(dueNow) + " (have " + DisplayUnits.Money(s.Budget) + ").";
                 return false;
             }
 
@@ -110,7 +110,8 @@ namespace MinistryOfPower.Simulation
                 ? (4f + s.EffectiveLobby * 8f) * s.Difficulty.LobbyPressureMultiplier * s.Scenario.LobbyRetireMultiplier
                 : 1.5f;
             s.ApplyMeterDeltas(0f, 0f, 0f, -lobbyHit);
-            message = $"Retired {plant.DisplayName} ({RegionCatalog.DisplayName(plant.Region)}). Lobby −{lobbyHit:0.0} conf.";
+            message = "Retired " + plant.DisplayName + " (" + RegionCatalog.DisplayName(plant.Region) +
+                      "). Lobby −" + lobbyHit.ToString("0.0") + " conf pts.";
             s.EmitLog(message);
             return true;
         }
@@ -122,7 +123,7 @@ namespace MinistryOfPower.Simulation
             float cost = 22f + s.Difficulty.EventHarshness * 6f;
             if (s.Budget < cost)
             {
-                message = $"Emergency import needs {cost:0} budget.";
+                message = "Emergency import needs " + DisplayUnits.Money(cost) + ".";
                 return false;
             }
 
@@ -131,7 +132,8 @@ namespace MinistryOfPower.Simulation
             s.EmergencyImportMw = Math.Max(s.EmergencyImportMw, mw);
             s.EmergencyImportDaysRemaining = Math.Max(s.EmergencyImportDaysRemaining, 10);
             s.ApplyMeterDeltas(4f, -1f, 0f, 1.5f);
-            message = $"Emergency import +{mw:0} MW for {s.EmergencyImportDaysRemaining}d (−{cost:0} treasury).";
+            message = "Emergency import +" + DisplayUnits.Capacity(mw) + " for " + s.EmergencyImportDaysRemaining +
+                      "d (−" + DisplayUnits.Money(cost) + ").";
             s.EmitLog(message);
             return true;
         }
@@ -141,7 +143,7 @@ namespace MinistryOfPower.Simulation
             if (s.AwaitingCrisisDecision) { message = "Resolve the crisis first."; return false; }
             if (s.PrivateReserveMw >= 200f)
             {
-                message = "Private reserve already at grey-box cap (200 MW).";
+                message = "Private reserve already at grey-box cap (" + DisplayUnits.Capacity(200f) + ").";
                 return false;
             }
 
@@ -159,7 +161,8 @@ namespace MinistryOfPower.Simulation
             s.PrivateReserveMw += mw;
             s.PrivateReserveQuarterlyCost += quarterly;
             s.ApplyMeterDeltas(3f, 0f, -0.5f, 1f);
-            message = $"Private reserve +{mw:0} MW (−{upfront:0} now, −{quarterly:0.0}/q).";
+            message = "Private reserve +" + DisplayUnits.Capacity(mw) + " (−" + DisplayUnits.Money(upfront) +
+                      " now, −" + DisplayUnits.MoneyPerQuarter(quarterly) + ").";
             s.EmitLog(message);
             return true;
         }
@@ -174,7 +177,7 @@ namespace MinistryOfPower.Simulation
                 float cost = 14f * s.Difficulty.BudgetMultiplier;
                 if (s.Budget < cost)
                 {
-                    message = "Strategic reserve fill needs ~" + cost.ToString("0") + " treasury.";
+                    message = "Strategic reserve fill needs ~" + DisplayUnits.Money(cost) + ".";
                     return false;
                 }
 
@@ -195,14 +198,15 @@ namespace MinistryOfPower.Simulation
                 float cost = 18f * s.Difficulty.BudgetMultiplier;
                 if (s.Budget < cost)
                 {
-                    message = "Renewable subsidy needs ~" + cost.ToString("0") + " treasury.";
+                    message = "Renewable subsidy needs ~" + DisplayUnits.Money(cost) + ".";
                     return false;
                 }
 
                 s.Budget -= cost;
                 s.NoteSpend(cost);
                 s.ApplyMeterDeltas(0f, 4f, 5f, -2f * s.Difficulty.LobbyPressureMultiplier);
-                message = $"Renewable subsidy (−{cost:0}). Transition +5, bills +4; lobby bruises confidence.";
+                message = "Renewable subsidy (−" + DisplayUnits.Money(cost) +
+                          "). Transition +5, bills +4; lobby bruises confidence.";
                 s.Cabinet.SyncFromMeters(s.Meters, s.EffectiveLobby);
                 s.EmitLog("CABINET: " + message);
                 return true;

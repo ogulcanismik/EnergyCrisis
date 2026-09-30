@@ -36,6 +36,9 @@ namespace MinistryOfPower.Data
         public int CampaignYears = MandateTracker.DefaultCampaignYears;
         public float StartingBudget = 100f;
         public float QuarterlyIncome = 12f;
+        [Tooltip("Player-facing currency for treasury/build costs (stored as billions of this currency).")]
+        public string CurrencyCode = "USD";
+        public string CurrencyName = "US dollars";
         public float BaseDemandMw = 1000f;
         public float SolarResource = 1f;
         public float WindResource = 1f;
@@ -67,6 +70,8 @@ namespace MinistryOfPower.Data
                 CampaignYears = CampaignYears > 0 ? CampaignYears : MandateTracker.DefaultCampaignYears,
                 StartingBudget = StartingBudget,
                 QuarterlyIncome = QuarterlyIncome,
+                CurrencyCode = string.IsNullOrEmpty(CurrencyCode) ? DisplayUnits.DefaultCurrencyCode : CurrencyCode,
+                CurrencyName = string.IsNullOrEmpty(CurrencyName) ? DisplayUnits.DefaultCurrencyName : CurrencyName,
                 BaseDemandMw = BaseDemandMw,
                 SolarResource = SolarResource,
                 WindResource = WindResource,

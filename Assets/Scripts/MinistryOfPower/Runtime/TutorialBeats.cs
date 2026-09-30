@@ -43,7 +43,7 @@ namespace MinistryOfPower.Runtime
         }
 
         public const string TipBuild =
-            "TIP — First order placed. Watch Construction queue: ETA, /q drain, cancel rows. Treasury stress marks !.";
+            "TIP — First order placed. Watch Construction queue: ETA, /q drain (bn or m), cancel rows. Treasury stress marks !.";
         public const string TipEvent =
             "TIP — Crisis card. Adequacy crises let you load-shed who goes dark. Others: absorb / fossil / tariff.";
         public const string TipWinter =

@@ -18,14 +18,13 @@ namespace MinistryOfPower.Simulation
 
         public string FormatModal()
         {
-            var sb = new StringBuilder(360);
+            var sb = new StringBuilder(420);
             sb.Append("Year ").Append(Year).Append(" closed.\n\n");
-            sb.Append("Adequacy avg: ").Append(AdequacyAvg.ToString("0.0")).Append('\n');
-            sb.Append("Affordability avg: ").Append(AffordAvg.ToString("0.0")).Append('\n');
+            sb.Append("Adequacy avg: ").Append(AdequacyAvg.ToString("0.0")).Append(" pts\n");
+            sb.Append("Affordability avg: ").Append(AffordAvg.ToString("0.0")).Append(" pts\n");
             sb.Append("Clean % (end): ").Append(CleanPctEnd.ToString("0")).Append("%\n");
-            sb.Append("Treasury spent (approx): ").Append(Spend.ToString("0.0")).Append('\n');
-            sb.Append("Net treasury Δ: ").Append(NetTreasuryDelta >= 0f ? "+" : "")
-                .Append(NetTreasuryDelta.ToString("0.0")).Append('\n');
+            sb.Append("Treasury spent (approx): ").Append(DisplayUnits.Money(Spend)).Append('\n');
+            sb.Append("Net treasury Δ: ").Append(DisplayUnits.Money(NetTreasuryDelta, signed: true)).Append('\n');
             sb.Append("Events logged: ").Append(EventCount).Append('\n');
             sb.Append("Biggest event: ").Append(string.IsNullOrEmpty(BiggestEventTitle) ? "—" : BiggestEventTitle);
             if (BiggestEventSeverity > 0.01f)

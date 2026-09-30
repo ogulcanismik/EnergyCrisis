@@ -24,6 +24,9 @@ namespace MinistryOfPower.Simulation
         public float StartingTransition = 18f;
         public float StartingConfidence = 70f;
         public string DifferentiationBlurb = "";
+        /// <summary>ISO-ish currency code for player-facing money (v1 greybox: USD).</summary>
+        public string CurrencyCode = DisplayUnits.DefaultCurrencyCode;
+        public string CurrencyName = DisplayUnits.DefaultCurrencyName;
         public List<PlantSpawnConfig> StartingPlants = new List<PlantSpawnConfig>();
         public List<EventWeightConfig> EventWeights = new List<EventWeightConfig>();
     }
@@ -71,10 +74,11 @@ namespace MinistryOfPower.Simulation
         {
             string fuel = ResourceStockpile.NeedsStock(ResultFuel) ? ResultFuel.ToString() : "none";
             string pay = PaymentMode == BuildPaymentMode.Upfront
-                ? $"upfront ${UpfrontCost:0}"
-                : $"${UpfrontCost:0} + ${QuarterlyCost:0}/q";
-            return $"{DisplayName}\n{pay} · {ResultCapacityMw:0} MW · upkeep {QuarterlyUpkeep:0.0}/q\n" +
-                   $"Fuel {fuel} · {DurationQuarters}q build\n{Description}";
+                ? "upfront " + DisplayUnits.Money(UpfrontCost)
+                : DisplayUnits.Money(UpfrontCost) + " + " + DisplayUnits.MoneyPerQuarter(QuarterlyCost);
+            return DisplayName + "\n" + pay + " · " + DisplayUnits.Capacity(ResultCapacityMw) +
+                   " · upkeep " + DisplayUnits.MoneyPerQuarter(QuarterlyUpkeep) + "\n" +
+                   "Fuel " + fuel + " · " + DurationQuarters + "q build\n" + Description;
         }
     }
 }

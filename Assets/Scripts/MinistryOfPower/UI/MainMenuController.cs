@@ -105,11 +105,16 @@ namespace MinistryOfPower.UI
             _title.text = "SELECT SCENARIO";
             PrototypeContentFactory.CreateUsaLike(out ScenarioConfig fed, out _);
             PrototypeContentFactory.CreateSunRich(out ScenarioConfig sun, out _);
-            _body.text = "Hands differ hard — lobby, solar CF, imports, retire pain. Difficulty next.";
+            _body.text = "Hands differ hard — lobby, solar CF, imports, retire pain. " +
+                         DisplayUnits.TreasuryExplainShort() + ".";
             ClearButtons();
             float y = 0.88f;
-            AddBtn($"Federal High Budget\n{fed.DifferentiationBlurb}", () => { _scenarioId = "usa_like"; ShowDifficulty(); }, ref y, 0.22f);
-            AddBtn($"Sun-Rich Low Budget\n{sun.DifferentiationBlurb}", () => { _scenarioId = "sun_rich"; ShowDifficulty(); }, ref y, 0.22f);
+            DisplayUnits.Bind(fed);
+            AddBtn("Federal High Budget\n" + fed.DifferentiationBlurb + "\n(" + DisplayUnits.TreasuryExplainShort() + ")",
+                () => { _scenarioId = "usa_like"; ShowDifficulty(); }, ref y, 0.22f);
+            DisplayUnits.Bind(sun);
+            AddBtn("Sun-Rich Low Budget\n" + sun.DifferentiationBlurb + "\n(" + DisplayUnits.TreasuryExplainShort() + ")",
+                () => { _scenarioId = "sun_rich"; ShowDifficulty(); }, ref y, 0.22f);
             AddBtn("Back", ShowRoot, ref y);
         }
 
@@ -117,16 +122,21 @@ namespace MinistryOfPower.UI
         {
             _title.text = "SELECT DIFFICULTY";
             PrototypeContentFactory.TryCreateById(_scenarioId, out ScenarioConfig sc, out _);
+            DisplayUnits.Bind(sc);
             float baseBudget = sc.StartingBudget;
             DifficultyConfig easy = DifficultyConfig.Create(DifficultyId.Easy);
             DifficultyConfig normal = DifficultyConfig.Create(DifficultyId.Normal);
             DifficultyConfig hard = DifficultyConfig.Create(DifficultyId.Hard);
-            _body.text = $"{sc.DisplayName}: {sc.DifferentiationBlurb}\nDifficulty still scales treasury / shocks / lobby drain.";
+            _body.text = sc.DisplayName + ": " + sc.DifferentiationBlurb + "\n" +
+                         DisplayUnits.TreasuryExplain() + " Difficulty scales treasury / shocks / lobby drain.";
             ClearButtons();
             float y = 0.88f;
-            AddBtn($"EASY — treasury ~{baseBudget * easy.BudgetMultiplier:0}\n{easy.Blurb}", () => StartNew(DifficultyId.Easy), ref y, 0.18f);
-            AddBtn($"NORMAL — treasury ~{baseBudget * normal.BudgetMultiplier:0}\n{normal.Blurb}", () => StartNew(DifficultyId.Normal), ref y, 0.18f);
-            AddBtn($"HARD — treasury ~{baseBudget * hard.BudgetMultiplier:0}\n{hard.Blurb}", () => StartNew(DifficultyId.Hard), ref y, 0.18f);
+            AddBtn("EASY — treasury ~" + DisplayUnits.Money(baseBudget * easy.BudgetMultiplier) + "\n" + easy.Blurb,
+                () => StartNew(DifficultyId.Easy), ref y, 0.18f);
+            AddBtn("NORMAL — treasury ~" + DisplayUnits.Money(baseBudget * normal.BudgetMultiplier) + "\n" + normal.Blurb,
+                () => StartNew(DifficultyId.Normal), ref y, 0.18f);
+            AddBtn("HARD — treasury ~" + DisplayUnits.Money(baseBudget * hard.BudgetMultiplier) + "\n" + hard.Blurb,
+                () => StartNew(DifficultyId.Hard), ref y, 0.18f);
             AddBtn("Back", ShowScenario, ref y, 0.1f);
         }
 

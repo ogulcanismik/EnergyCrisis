@@ -42,7 +42,7 @@ namespace MinistryOfPower.Simulation
                 Sb.Append("· ").Append(o.DisplayName).Append(" online in ").Append(o.QuartersRemaining).Append('q');
                 if (o.PaymentMode == BuildPaymentMode.PerQuarter && o.QuarterlyCost > 0f)
                 {
-                    Sb.Append(" (").Append(o.QuarterlyCost.ToString("0")).Append("/q)");
+                    Sb.Append(" (").Append(DisplayUnits.MoneyPerQuarter(o.QuarterlyCost)).Append(')');
                 }
 
                 Sb.Append('\n');
@@ -79,8 +79,8 @@ namespace MinistryOfPower.Simulation
             if (session.Difficulty != null) { /* income already effective in session via _quarterlyIncome — use parameter */ }
 
             float net = income - quarterlyBurn;
-            Sb.Append("· Treasury ").Append(budget.ToString("0.0"))
-                .Append(" · net ").Append(net >= 0f ? "+" : "").Append(net.ToString("0.0")).Append("/q\n");
+            Sb.Append("· Treasury ").Append(DisplayUnits.Money(budget))
+                .Append(" · net ").Append(DisplayUnits.MoneyPerQuarter(net, signed: true)).Append('\n');
 
             if (budget < 0f) Sb.AppendLine("· Budget runway: OVERDRAWN");
             else if (net >= -0.01f) Sb.AppendLine("· Budget runway: stable / growing");
@@ -173,14 +173,14 @@ namespace MinistryOfPower.Simulation
 
         private static void AppendDeals(GameSession session)
         {
-            Sb.Append("· Private reserve: ").Append(session.PrivateReserveMw.ToString("0")).Append(" MW");
+            Sb.Append("· Private reserve: ").Append(DisplayUnits.Capacity(session.PrivateReserveMw));
             if (session.PrivateReserveMw > 0f)
             {
-                Sb.Append(" (").Append(session.PrivateReserveQuarterlyCost.ToString("0.0")).Append("/q)");
+                Sb.Append(" (").Append(DisplayUnits.MoneyPerQuarter(session.PrivateReserveQuarterlyCost)).Append(')');
             }
 
             Sb.Append(" · Emergency import buffer: ")
-                .Append(session.EmergencyImportMw.ToString("0")).Append(" MW (")
+                .Append(DisplayUnits.Capacity(session.EmergencyImportMw)).Append(" (")
                 .Append(session.EmergencyImportDaysRemaining).Append("d)\n");
         }
 
@@ -211,8 +211,8 @@ namespace MinistryOfPower.Simulation
 
             if (mods.ImportDisruptionDaysRemaining > 0)
             {
-                Sb.Append("· Imports ").Append(mods.ImportMwAvailable.ToString("0")).Append('/')
-                    .Append(mods.ImportMwBaseline.ToString("0")).Append(" MW (")
+                Sb.Append("· Imports ").Append(DisplayUnits.Capacity(mods.ImportMwAvailable)).Append('/')
+                    .Append(DisplayUnits.Capacity(mods.ImportMwBaseline)).Append(" (")
                     .Append(mods.ImportDisruptionDaysRemaining).Append("d)\n");
                 any = true;
             }

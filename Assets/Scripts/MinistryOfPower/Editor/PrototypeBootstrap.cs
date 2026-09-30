@@ -111,7 +111,9 @@ namespace MinistryOfPower.EditorTools
             usa.ImportCapacityMw = 60f;
             usa.CampaignYears = 20;
             usa.DifferentiationBlurb =
-                "Treasury +lobby · Solar CF ~1.0 · Imports thin (60 MW) · Retire fossils hurts hard (×1.55 lobby) · Oil-weighted shocks";
+                "Treasury +lobby · Solar CF ~1.0 · Imports thin (60 MW) · Retire fossils hurts hard (×1.55 lobby) · Oil-weighted shocks · Treasury in billion US dollars";
+            usa.CurrencyCode = "USD";
+            usa.CurrencyName = "US dollars";
             usa.StartingAdequacy = 74f;
             usa.StartingAffordability = 70f;
             usa.StartingTransition = 16f;
@@ -153,7 +155,9 @@ namespace MinistryOfPower.EditorTools
             sun.ImportCapacityMw = 160f;
             sun.CampaignYears = 20;
             sun.DifferentiationBlurb =
-                "Thin treasury · Solar CF ~1.45 · Imports fat (160 MW) · Soft retire lobby (×0.55) · Drought/heat/import shocks";
+                "Thin treasury · Solar CF ~1.45 · Imports fat (160 MW) · Soft retire lobby (×0.55) · Drought/heat/import shocks · Treasury in billion US dollars";
+            sun.CurrencyCode = "USD";
+            sun.CurrencyName = "US dollars";
             sun.StartingAdequacy = 62f;
             sun.StartingAffordability = 58f;
             sun.StartingTransition = 22f;

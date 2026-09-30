@@ -65,7 +65,10 @@ namespace MinistryOfPower.UI
             float margin = session.LastReport.SupplyMw - session.LastReport.DemandMw;
             string peak = IsPeakHour(hour) ? "PEAK" : "off-peak";
             _caption.text =
-                $"24h dispatch · {hour:0.0}h ({peak}) · dem {session.LastReport.DemandMw:0} / sup {session.LastReport.SupplyMw:0} · margin {margin:+0;-0;0} MW";
+                "24h dispatch · " + hour.ToString("0.0") + "h (" + peak + ") · dem " +
+                DisplayUnits.Capacity(session.LastReport.DemandMw) + " / sup " +
+                DisplayUnits.Capacity(session.LastReport.SupplyMw) + " · margin " +
+                DisplayUnits.Capacity(margin, signed: true);
         }
 
         private static bool IsPeakHour(float hour)

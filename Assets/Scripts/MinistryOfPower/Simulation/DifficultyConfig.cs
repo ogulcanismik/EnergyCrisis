@@ -36,7 +36,7 @@ namespace MinistryOfPower.Simulation
                         LobbyPressureMultiplier = 0.45f,
                         ConfidenceDrainMultiplier = 0.45f,
                         StartingConfidenceBonus = 16f,
-                        Blurb = "Fat treasury (+65%), soft/rare shocks — first years are survivable learning space."
+                        Blurb = "Fat treasury (+65% bn), soft/rare shocks — first years are survivable learning space."
                     };
                 case DifficultyId.Hard:
                     return new DifficultyConfig
@@ -50,22 +50,24 @@ namespace MinistryOfPower.Simulation
                         LobbyPressureMultiplier = 1.65f,
                         ConfidenceDrainMultiplier = 1.55f,
                         StartingConfidenceBonus = -14f,
-                        Blurb = "Thin cash (−38%), loud shocks, vicious lobby — mistakes compound fast."
+                        Blurb = "Thin cash (−38% bn), loud shocks, vicious lobby — mistakes compound fast."
                     };
                 default:
                     return new DifficultyConfig
                     {
                         Id = DifficultyId.Normal,
                         DisplayName = "Normal",
-                        Blurb = "Baseline budget, monthly-ish shocks, standard lobby pressure."
+                        Blurb = "Baseline budget (bn), monthly-ish shocks, standard lobby pressure."
                     };
             }
         }
 
         public string FormatSummary(float baseBudget)
         {
-            return $"{DisplayName}: start treasury ~{(baseBudget * BudgetMultiplier):0}, " +
-                   $"events ×{EventFrequencyMultiplier:0.00} / harsh ×{EventHarshness:0.00}. {Blurb}";
+            return DisplayName + ": start treasury ~" + DisplayUnits.Money(baseBudget * BudgetMultiplier) +
+                   ", events ×" + EventFrequencyMultiplier.ToString("0.00") +
+                   " / harsh ×" + EventHarshness.ToString("0.00") + ". " + Blurb +
+                   " " + DisplayUnits.TreasuryExplain();
         }
     }
 }

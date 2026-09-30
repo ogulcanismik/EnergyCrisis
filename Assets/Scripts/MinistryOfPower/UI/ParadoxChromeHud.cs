@@ -316,36 +316,38 @@ namespace MinistryOfPower.UI
             _tickText.text = peak ? "PEAK" : "OFF-PEAK";
             _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
 
-            _treasuryText.text = $"Treasury  {s.Budget:0.0}";
+            _treasuryText.text = "Treasury  " + DisplayUnits.Money(s.Budget);
             int budgetKey = (int)(s.Budget * 10f) ^ (s.Difficulty != null ? (int)s.Difficulty.Id : 0);
             if (budgetKey != _tooltipBudgetKey)
             {
                 _tooltipBudgetKey = budgetKey;
-                UiFactory.AttachTooltip(_treasuryText.gameObject,
-                    s.Difficulty != null ? s.Difficulty.FormatSummary(s.Scenario.StartingBudget) : "Cash on hand");
+                string tip = DisplayUnits.TreasuryExplain();
+                if (s.Difficulty != null)
+                    tip += "\n" + s.Difficulty.FormatSummary(s.Scenario.StartingBudget);
+                UiFactory.AttachTooltip(_treasuryText.gameObject, tip);
             }
 
             // Political capital maps to seat Confidence until a distinct PC meter exists.
-            _confidenceText.text = $"Conf  {m.Confidence:0}";
+            _confidenceText.text = DisplayUnits.ConfidenceHud(m.Confidence);
             if (!_staticTipsAttached)
             {
-                UiFactory.AttachTooltip(_confidenceText.gameObject,
-                    "Seat confidence (political capital proxy).\nAdeq/Aff/Trans feed this meter.\nLobby retirements and crises sting it.");
+                UiFactory.AttachTooltip(_confidenceText.gameObject, DisplayUnits.ConfidenceTip());
                 _staticTipsAttached = true;
             }
 
             float margin = s.LastReport.DemandMw > 0f
                 ? s.LastReport.SupplyMw - s.LastReport.DemandMw
                 : 0f;
-            _marginText.text = $"Margin  {margin:+0;-0;0} MW";
+            _marginText.text = "Margin  " + DisplayUnits.Capacity(margin, signed: true);
             _marginText.color = margin < 0f ? UiFactory.Hex("C45A5A") : margin < 40f ? UiFactory.Hex("C4A35A") : UiFactory.Hex("6BA36A");
             int marginKey = (int)margin ^ (s.Clock.AbsoluteDay * 17) ^ ((int)m.Adequacy << 8);
             if (marginKey != _tooltipMarginKey)
             {
                 _tooltipMarginKey = marginKey;
                 UiFactory.AttachTooltip(_marginText.gameObject,
-                    $"Global grid margin\nSupply {s.LastReport.SupplyMw:0} − Demand {s.LastReport.DemandMw:0} MW\n" +
-                    $"Adeq {m.Adequacy:0} · Aff {m.Affordability:0} · Trans {m.Transition:0}");
+                    "Global grid margin\n" + DisplayUnits.CapacityPair(s.LastReport.SupplyMw, s.LastReport.DemandMw) + "\n" +
+                    "Adeq " + m.Adequacy.ToString("0") + " · Aff " + m.Affordability.ToString("0") +
+                    " · Trans " + m.Transition.ToString("0") + " pts");
             }
 
             _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
@@ -410,22 +412,23 @@ namespace MinistryOfPower.UI
             CabinetState c = s.Cabinet;
             float lobby = s.FossilLobby01 * 100f;
             _lobbyText.text =
-                $"LOBBY PRESSURE\n" +
-                $"Fossil lobby   {Bar(lobby)}  {lobby:0}\n" +
-                $"Climate / green {Bar(c.ClimateMandatePressure)}  {c.ClimateMandatePressure:0}\n" +
-                $"Industry       {Bar(c.IndustryPressure)}  {c.IndustryPressure:0}\n" +
-                $"Bills mandate  {Bar(c.AffordabilityMandate)}  {c.AffordabilityMandate:0}\n\n" +
+                "LOBBY PRESSURE\n" +
+                "Fossil lobby   " + Bar(lobby) + "  " + DisplayUnits.LobbyPts(lobby) + "\n" +
+                "Climate / green " + Bar(c.ClimateMandatePressure) + "  " + DisplayUnits.LobbyPts(c.ClimateMandatePressure) + "\n" +
+                "Industry       " + Bar(c.IndustryPressure) + "  " + DisplayUnits.LobbyPts(c.IndustryPressure) + "\n" +
+                "Bills mandate  " + Bar(c.AffordabilityMandate) + "  " + DisplayUnits.LobbyPts(c.AffordabilityMandate) + "\n\n" +
                 "Fossil lobby raises retire cost & bruises clean builds.\n" +
                 "Climate pressure rises when transition stalls.\n" +
-                "Industry wants firm MW and cheap fuel.";
+                "Industry wants firm MW and cheap fuel.\n" +
+                "Lobby meters are points (0–100), not money.";
 
             if (_cabinetSummaryText != null)
             {
                 _cabinetSummaryText.text =
-                    $"CABINET\nPM confidence {c.PmConfidence:0.0}\n" +
-                    $"Mandate: {c.ActiveMandate}\n" +
-                    $"Tariff freeze: {(c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off")}\n" +
-                    $"Emerg. fossil: {(c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off")}";
+                    "CABINET\nPM confidence " + DisplayUnits.Points(c.PmConfidence, "0.0") + "\n" +
+                    "Mandate: " + c.ActiveMandate + "\n" +
+                    "Tariff freeze: " + (c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off") + "\n" +
+                    "Emerg. fossil: " + (c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off");
             }
         }
 
@@ -564,10 +567,10 @@ namespace MinistryOfPower.UI
                 _queueCancelIds[qi] = o.Id;
                 _queueCancelBtns[qi].gameObject.SetActive(show);
                 string drain = o.PaymentMode == BuildPaymentMode.PerQuarter && o.QuarterlyCost > 0f
-                    ? $" · {o.QuarterlyCost:0}/q"
+                    ? " · " + DisplayUnits.MoneyPerQuarter(o.QuarterlyCost)
                     : "";
                 bool stressed = s.Budget < o.QuarterlyCost * 2f;
-                _queueCancelLabels[qi].text = $"X {o.DisplayName} · {o.QuartersRemaining}q{drain}" + (stressed ? " !" : "");
+                _queueCancelLabels[qi].text = "X " + o.DisplayName + " · " + o.QuartersRemaining + "q" + drain + (stressed ? " !" : "");
                 _queueCancelLabels[qi].color = stressed ? UiFactory.Hex("C45A5A") : UiFactory.Hex("E7DCC8");
                 qi++;
             }
@@ -608,11 +611,14 @@ namespace MinistryOfPower.UI
             _plantTitle.text = plant.DisplayName.ToUpperInvariant();
             float marketMul = s.FuelMarket != null ? s.FuelMarket.UpkeepMul(plant.Fuel) : 1f;
             _plantBody.text =
-                $"Fuel {plant.Fuel}  ·  {RegionCatalog.DisplayName(plant.Region)}\n" +
-                $"Capacity {plant.CapacityMw:0} MW  ·  avail {plant.Availability:0%}\n" +
-                $"Upkeep {plant.QuarterlyUpkeep:0.0}/q (market ×{marketMul:0.00} → {plant.QuarterlyUpkeep * marketMul:0.0})\n" +
-                $"Var cost {plant.VariableCostPerMwh:0.0}  ·  oil exp {plant.OilExposure:0%}\n" +
-                $"Daily fuel use {plant.DailyFuelUse:0.00}\n\n" +
+                "Fuel " + plant.Fuel + "  ·  " + RegionCatalog.DisplayName(plant.Region) + "\n" +
+                "Capacity " + DisplayUnits.Capacity(plant.CapacityMw) + "  ·  avail " + plant.Availability.ToString("0%") + "\n" +
+                "Upkeep " + DisplayUnits.MoneyPerQuarter(plant.QuarterlyUpkeep) +
+                " (market ×" + marketMul.ToString("0.00") + " → " +
+                DisplayUnits.MoneyPerQuarter(plant.QuarterlyUpkeep * marketMul) + ")\n" +
+                "Var cost " + DisplayUnits.PricePerMwh(plant.VariableCostPerMwh) +
+                "  ·  oil exp " + plant.OilExposure.ToString("0%") + "\n" +
+                "Daily fuel use " + plant.DailyFuelUse.ToString("0.00") + "\n\n" +
                 "Retire removes this unit (fossil lobby sting if fossil).";
         }
 
@@ -677,7 +683,7 @@ namespace MinistryOfPower.UI
                     .Append(o.DisplayName)
                     .Append("  ETA ").Append(o.QuartersRemaining).Append('q');
                 if (o.PaymentMode == BuildPaymentMode.PerQuarter && o.QuarterlyCost > 0f)
-                    sb.Append("  drain ").Append(o.QuarterlyCost.ToString("0")).Append("/q");
+                    sb.Append("  drain ").Append(DisplayUnits.MoneyPerQuarter(o.QuarterlyCost));
                 sb.Append('\n');
             }
 
@@ -685,9 +691,9 @@ namespace MinistryOfPower.UI
             float income = s.Scenario.QuarterlyIncome * (s.Difficulty?.IncomeMultiplier ?? 1f);
             if (qBurn > income * 0.85f || (qBurn > 0f && s.Budget < qBurn))
             {
-                sb.Append("⚠ Treasury stress: queue drain ").Append(qBurn.ToString("0.0"))
-                    .Append("/q vs income ").Append(income.ToString("0.0"))
-                    .Append(" (cash ").Append(s.Budget.ToString("0.0")).Append(")\n");
+                sb.Append("⚠ Treasury stress: queue drain ").Append(DisplayUnits.MoneyPerQuarter(qBurn))
+                    .Append(" vs income ").Append(DisplayUnits.MoneyPerQuarter(income))
+                    .Append(" (cash ").Append(DisplayUnits.Money(s.Budget)).Append(")\n");
             }
 
             sb.AppendLine().Append("CATALOG [").Append(filter).Append("] — cost / MW / upkeep / fuel / time\n");
@@ -698,9 +704,9 @@ namespace MinistryOfPower.UI
                 if (!MatchesFuelFilter(b.ResultFuel, filter)) continue;
                 string fuel = ResourceStockpile.NeedsStock(b.ResultFuel) ? b.ResultFuel.ToString() : "none";
                 sb.Append("· ").Append(b.DisplayName)
-                    .Append("  $").Append(b.UpfrontCost.ToString("0"))
-                    .Append("  ").Append(b.ResultCapacityMw.ToString("0")).Append("MW")
-                    .Append("  upk ").Append(b.QuarterlyUpkeep.ToString("0.0"))
+                    .Append("  ").Append(DisplayUnits.Money(b.UpfrontCost))
+                    .Append("  ").Append(DisplayUnits.Capacity(b.ResultCapacityMw))
+                    .Append("  upk ").Append(DisplayUnits.MoneyPerQuarter(b.QuarterlyUpkeep))
                     .Append("  ").Append(fuel)
                     .Append("  ").Append(b.DurationQuarters).Append("q\n");
             }
@@ -718,7 +724,7 @@ namespace MinistryOfPower.UI
                 PlantInstance p = plants[i];
                 if (p.IsRetired) continue;
                 sb.Append(p.DisplayName).Append("  ").Append(p.Fuel).Append("  ")
-                    .Append(p.CapacityMw.ToString("0")).Append(" MW\n");
+                    .Append(DisplayUnits.Capacity(p.CapacityMw)).Append('\n');
             }
 
             sb.Append("\nClean ").Append((s.Portfolio.TransitionProgress01() * 100f).ToString("0"))
@@ -734,9 +740,9 @@ namespace MinistryOfPower.UI
                 .Append("\nGas ").Append(r.Gas.ToString("0.0"))
                 .Append("\nOil ").Append(r.Oil.ToString("0.0"))
                 .Append("\nUranium ").Append(r.Uranium.ToString("0.0"))
-                .Append("\n\nImports ").Append(s.Modifiers.ImportMwAvailable.ToString("0"))
-                .Append('/').Append(s.Modifiers.ImportMwBaseline.ToString("0")).Append(" MW")
-                .Append("\n\nFuel market: ").Append(s.FuelMarket != null ? s.FuelMarket.FormatLine() : "—")
+                .Append("\n\nImports ").Append(DisplayUnits.Capacity(s.Modifiers.ImportMwAvailable))
+                .Append('/').Append(DisplayUnits.Capacity(s.Modifiers.ImportMwBaseline))
+                .Append("\n\nFuel market (index): ").Append(s.FuelMarket != null ? s.FuelMarket.FormatLine() : "—")
                 .Append("\nOil shock mul ").Append(s.OilShockMultiplier.ToString("0.00"))
                 .Append("\n\n").Append(DeskProjections.Build(s, s.Builds.Orders,
                     s.Scenario.QuarterlyIncome * (s.Difficulty?.IncomeMultiplier ?? 1f)));
@@ -749,11 +755,15 @@ namespace MinistryOfPower.UI
             float reserveUpfront = 18f * (s.Difficulty?.BudgetMultiplier ?? 1f);
             return
                 "Infrastructure investment & procurement.\n\n" +
-                $"Interconnector baseline: {s.Modifiers.ImportMwAvailable:0}/{s.Modifiers.ImportMwBaseline:0} MW\n" +
-                $"Emergency import buffer: {s.EmergencyImportMw:0} MW ({s.EmergencyImportDaysRemaining}d left)\n" +
-                $"  → Buy +80 MW / 10d for ~{importCost:0} treasury.\n\n" +
-                $"Private reserve: {s.PrivateReserveMw:0} MW (cap 200) · {s.PrivateReserveQuarterlyCost:0.0}/q\n" +
-                $"  → Sign +60 MW for ~{reserveUpfront:0} upfront + 4.5/q\n\n" +
+                "Interconnector baseline: " + DisplayUnits.Capacity(s.Modifiers.ImportMwAvailable) + "/" +
+                DisplayUnits.Capacity(s.Modifiers.ImportMwBaseline) + "\n" +
+                "Emergency import buffer: " + DisplayUnits.Capacity(s.EmergencyImportMw) +
+                " (" + s.EmergencyImportDaysRemaining + "d left)\n" +
+                "  → Buy +" + DisplayUnits.Capacity(80f) + " / 10d for ~" + DisplayUnits.Money(importCost) + ".\n\n" +
+                "Private reserve: " + DisplayUnits.Capacity(s.PrivateReserveMw) + " (cap " +
+                DisplayUnits.Capacity(200f) + ") · " + DisplayUnits.MoneyPerQuarter(s.PrivateReserveQuarterlyCost) + "\n" +
+                "  → Sign +" + DisplayUnits.Capacity(60f) + " for ~" + DisplayUnits.Money(reserveUpfront) +
+                " upfront + " + DisplayUnits.MoneyPerQuarter(4.5f) + "\n\n" +
                 "Extra firm MW feeds the day resolve.";
         }
 
@@ -777,13 +787,13 @@ namespace MinistryOfPower.UI
         private static string BuildCabinetText(GameSession s)
         {
             CabinetState c = s.Cabinet;
-            return $"PM Confidence {c.PmConfidence:0.0}\n" +
-                   $"Climate pressure {c.ClimateMandatePressure:0.0}\n" +
-                   $"Industry pressure {c.IndustryPressure:0.0}\n" +
-                   $"Affordability mandate {c.AffordabilityMandate:0.0}\n\n" +
-                   $"Mandate: {c.ActiveMandate}\n" +
-                   $"Tariff freeze: {(c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off")}\n" +
-                   $"Emergency fossil: {(c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off")}\n\n" +
+            return "PM Confidence " + DisplayUnits.Points(c.PmConfidence, "0.0") + "\n" +
+                   "Climate pressure " + DisplayUnits.Points(c.ClimateMandatePressure, "0.0") + "\n" +
+                   "Industry pressure " + DisplayUnits.Points(c.IndustryPressure, "0.0") + "\n" +
+                   "Affordability mandate " + DisplayUnits.Points(c.AffordabilityMandate, "0.0") + "\n\n" +
+                   "Mandate: " + c.ActiveMandate + "\n" +
+                   "Tariff freeze: " + (c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off") + "\n" +
+                   "Emergency fossil: " + (c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off") + "\n\n" +
                    "Fill Reserve: stock fuels + adequacy.\n" +
                    "RE Subsidy: transition + bills; lobby bruise.\n" +
                    "Don't confuse motion with governance.";
@@ -1184,7 +1194,8 @@ namespace MinistryOfPower.UI
                 "· Left: Construction / Policy / Investment.\n" +
                 "· Right: Lobby pressure meters + Cabinet levers.\n" +
                 "· Bottom: 24h load/supply curve + emergency import/reserve.\n" +
-                "· Map center: click regions & plants.\n" +
+                "· Map center: USA grey-box regions, plants, transmission lines.\n" +
+                "· Left-click regions/plants · hold right-mouse to pan · scroll to zoom.\n" +
                 "· Crisis modals for adequacy trade-offs.";
             UiFactory.Button(help.transform, "HelpOk", "Got it — open the desk",
                 new Vector2(0.25f, 0.05f), new Vector2(0.75f, 0.16f),

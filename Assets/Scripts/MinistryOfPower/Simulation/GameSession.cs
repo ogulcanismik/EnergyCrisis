@@ -81,6 +81,7 @@ namespace MinistryOfPower.Simulation
         {
             Scenario = scenario ?? throw new ArgumentNullException(nameof(scenario));
             Difficulty = difficulty ?? DifficultyConfig.Create(DifficultyId.Normal);
+            DisplayUnits.Bind(Scenario);
             Clock = new GameClock(scenario.StartYear);
             Portfolio = new PlantPortfolio();
             Builds = new BuildQueue();
