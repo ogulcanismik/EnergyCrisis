@@ -189,6 +189,26 @@ namespace MinistryOfPower.UI
             _onNormal?.Invoke();
         }
 
+        /// <summary>Editor / Play smoke: force-open a side menu and refresh panel text.</summary>
+        public void ForceOpenMenu(MenuId id)
+        {
+            EnsureUi();
+            _openMenu = id;
+            Render();
+        }
+
+        public string DebugPanelTitle => _panelTitle != null ? _panelTitle.text : "";
+        public string DebugPanelBody => _panelBody != null ? _panelBody.text : "";
+        public MenuId DebugOpenMenu => _openMenu;
+
+        public string DebugBuildTooltip(string buildId)
+        {
+            if (string.IsNullOrEmpty(buildId) || !_buildOrderBtns.TryGetValue(buildId, out GameObject go) || go == null)
+                return "";
+            var tip = go.GetComponent<HoverTooltip>();
+            return tip != null ? tip.Tip : "";
+        }
+
         private void OnRegionSelected(RegionId id)
         {
             _openRegion = id;
@@ -300,6 +320,7 @@ namespace MinistryOfPower.UI
             }
 
             _briefText.text = brief;
+            RefreshBuildCatalogTooltips(s);
 
             _sb.Length = 0;
             _sb.AppendLine("DESK LOG");
@@ -648,6 +669,18 @@ namespace MinistryOfPower.UI
                    "Fill Reserve: stock fuels + adequacy.\n" +
                    "RE Subsidy: transition + bills; lobby bruise.\n" +
                    "Don't confuse motion with governance.";
+        }
+
+        private void RefreshBuildCatalogTooltips(GameSession s)
+        {
+            if (s?.BuildCatalog == null || _buildOrderBtns.Count == 0) return;
+            IReadOnlyList<BuildDefinitionConfig> cat = s.BuildCatalog;
+            for (int i = 0; i < cat.Count; i++)
+            {
+                BuildDefinitionConfig b = cat[i];
+                if (!_buildOrderBtns.TryGetValue(b.Id, out GameObject go) || go == null) continue;
+                UiFactory.AttachTooltip(go, b.FormatCatalogTooltip());
+            }
         }
 
         private void ToggleMenu(MenuId id)
@@ -1009,9 +1042,9 @@ namespace MinistryOfPower.UI
                 "· Click map regions to site builds; click plant icons for detail / retire.\n" +
                 "· Mandate bar + Mandate menu sparkline (clean% over quarters).\n" +
                 "· Construction filters: Fossil / Clean / Storage (+ Offshore Wind, Biomass).\n" +
-                "· Cabinet: Fill Reserve / RE Subsidy · year-end report modal.\n" +
-                "· Budget / History · fuel market · load-shed crises.\n" +
-                "· F5 quicksave · Continue on main menu · tips once (Settings reset).";
+                "· Cabinet: Fill Reserve / RE Subsidy · year-end report (net Δ + biggest event).\n" +
+                "· Construction tooltips (cost / MW / fuel) · Cold Snap / Storm cards.\n" +
+                "· F5 quicksave · Continue shows last scenario · tips once (Settings reset).";
             UiFactory.Button(help.transform, "HelpOk", "Got it — open the desk",
                 new Vector2(0.25f, 0.05f), new Vector2(0.75f, 0.16f),
                 DismissHelp, UiFactory.Hex("8B6914"), paper, 16);

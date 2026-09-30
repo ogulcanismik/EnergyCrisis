@@ -5,6 +5,7 @@ using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using MinistryOfPower.Data;
 using MinistryOfPower.Runtime;
 using MinistryOfPower.Simulation;
 using MinistryOfPower.UI;
@@ -181,6 +182,46 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("saveVersion=").Append(save.Version)
                     .Append(" current=").Append(GameSaveData.CurrentVersion).AppendLine();
                 sb.AppendLine("P6 sim smoke OK");
+
+                sb.AppendLine("=== P7 SIM SMOKE ===");
+                EventDefinition coldAsset = AssetDatabase.LoadAssetAtPath<EventDefinition>(
+                    "Assets/Data/Events/Event_ColdSnap.asset");
+                EventDefinition stormAsset = AssetDatabase.LoadAssetAtPath<EventDefinition>(
+                    "Assets/Data/Events/Event_StormOutage.asset");
+                sb.Append("assetCold=").Append(coldAsset != null && coldAsset.Kind == PendingEventKind.ColdSnap)
+                    .Append(" assetStorm=").Append(stormAsset != null && stormAsset.Kind == PendingEventKind.StormOutage)
+                    .AppendLine();
+
+                BuildDefinitionConfig offTip = null, bioTip = null;
+                for (int i = 0; i < builds.Count; i++)
+                {
+                    if (builds[i].Id == "build_offshore_wind") offTip = builds[i];
+                    if (builds[i].Id == "build_biomass") bioTip = builds[i];
+                }
+
+                string offTt = offTip != null ? offTip.FormatCatalogTooltip() : "";
+                string bioTt = bioTip != null ? bioTip.FormatCatalogTooltip() : "";
+                sb.Append("tipOffshore=").Append(offTt.IndexOf("MW", StringComparison.Ordinal) >= 0
+                                                 && offTt.IndexOf("Fuel", StringComparison.Ordinal) >= 0)
+                    .Append(" tipBiomass=").Append(bioTt.IndexOf("MW", StringComparison.Ordinal) >= 0
+                                                   && bioTt.IndexOf("Biomass", StringComparison.Ordinal) >= 0)
+                    .AppendLine();
+
+                if (easyS.LastYearReport != null)
+                {
+                    string yr = easyS.LastYearReport.FormatModal();
+                    sb.Append("yearNetDelta=").Append(easyS.LastYearReport.NetTreasuryDelta.ToString("0.0"))
+                        .Append(" yearHasBiggest=").Append(yr.IndexOf("Biggest event", StringComparison.Ordinal) >= 0)
+                        .Append(" yearHasNet=").Append(yr.IndexOf("Net treasury", StringComparison.Ordinal) >= 0)
+                        .AppendLine();
+                }
+
+                GameSaveData contProbe = easyS.CaptureSave(0);
+                bool saved = SaveGameSystem.TrySave(0, contProbe, out _);
+                SaveSlotMeta contMeta = SaveGameSystem.PeekSlot(0);
+                sb.Append("continueSubtitle=").Append(saved && contMeta.Occupied && !string.IsNullOrEmpty(contMeta.ScenarioName))
+                    .Append(" scenario=").Append(contMeta.ScenarioName ?? "—").AppendLine();
+                sb.AppendLine("P7 sim smoke OK");
             }
             catch (Exception ex)
             {
@@ -323,6 +364,29 @@ namespace MinistryOfPower.EditorTools
 
                     sb.Append("spark=").Append(s.Mandate.FormatSparkline()).AppendLine();
                     sb.Append("history=").Append(s.History.Entries.Count).AppendLine();
+
+                    sb.AppendLine("=== P7 UI SMOKE ===");
+                    if (hud == null)
+                    {
+                        sb.AppendLine("FAIL no hud for menu smoke");
+                    }
+                    else
+                    {
+                        bool menusOk = SmokeMenu(hud, ParadoxChromeHud.MenuId.Mandate, "MANDATE", "Campaign", sb)
+                                       & SmokeMenu(hud, ParadoxChromeHud.MenuId.Budget, "BUDGET", "Treasury", sb)
+                                       & SmokeMenu(hud, ParadoxChromeHud.MenuId.History, "EVENT HISTORY", "HISTORY", sb)
+                                       & SmokeMenu(hud, ParadoxChromeHud.MenuId.Cabinet, "CABINET", "PM Confidence", sb);
+                        hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
+                        string offTip = hud.DebugBuildTooltip("build_offshore_wind");
+                        string bioTip = hud.DebugBuildTooltip("build_biomass");
+                        bool tipsOk = offTip.IndexOf("MW", StringComparison.Ordinal) >= 0
+                                      && bioTip.IndexOf("MW", StringComparison.Ordinal) >= 0;
+                        sb.Append("hudTipOffshore=").Append(tipsOk && offTip.Length > 10)
+                            .Append(" hudTipBiomass=").Append(tipsOk && bioTip.Length > 10).AppendLine();
+                        hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
+                        sb.AppendLine(menusOk && tipsOk ? "P7 UI SMOKE OK" : "P7 UI SMOKE FAIL");
+                    }
+
                     sb.AppendLine("PLAY SMOKE OK");
                 }
             }
@@ -336,6 +400,20 @@ namespace MinistryOfPower.EditorTools
             Debug.Log(sb.ToString());
             Debug.Log("Play smoke written: " + path);
             EditorApplication.isPlaying = false;
+        }
+
+        private static bool SmokeMenu(
+            ParadoxChromeHud hud, ParadoxChromeHud.MenuId id, string titleNeedle, string bodyNeedle, StringBuilder sb)
+        {
+            hud.ForceOpenMenu(id);
+            string title = hud.DebugPanelTitle ?? "";
+            string body = hud.DebugPanelBody ?? "";
+            bool ok = title.IndexOf(titleNeedle, StringComparison.OrdinalIgnoreCase) >= 0
+                      && body.IndexOf(bodyNeedle, StringComparison.OrdinalIgnoreCase) >= 0;
+            sb.Append("menu").Append(id).Append('=').Append(ok)
+                .Append(" title=").Append(title.Replace('\n', ' '))
+                .AppendLine();
+            return ok;
         }
     }
 }

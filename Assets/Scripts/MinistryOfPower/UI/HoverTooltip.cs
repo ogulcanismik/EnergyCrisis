@@ -80,6 +80,7 @@ namespace MinistryOfPower.UI
         [SerializeField] private string tip;
         private TooltipService _service;
 
+        public string Tip => tip;
         public void SetTip(string text) => tip = text;
 
         public void OnPointerEnter(PointerEventData eventData)

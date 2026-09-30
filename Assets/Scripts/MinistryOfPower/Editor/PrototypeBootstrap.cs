@@ -48,8 +48,19 @@ namespace MinistryOfPower.EditorTools
                 "import_cut", "Import Disruption",
                 "Interconnector fault. Damage scales with import dependence.",
                 PendingEventKind.ImportDisruption, 0.75f, 0.08f);
+            EventDefinition coldSnap = CreateEvent("Assets/Data/Events/Event_ColdSnap.asset",
+                "cold_snap", "Cold Snap",
+                "Heating load spikes. Thin firm cover and gas stocks hurt hardest.",
+                PendingEventKind.ColdSnap, 0.85f, 0.2f);
+            EventDefinition storm = CreateEvent("Assets/Data/Events/Event_StormOutage.asset",
+                "storm_outage", "Storm Outage",
+                "Lines and renewables take weather damage; interconnectors wobble.",
+                PendingEventKind.StormOutage, 0.8f, 0.12f);
 
-            var eventDeck = new System.Collections.Generic.List<EventDefinition> { oilShock, drought, heatwave, importCut };
+            var eventDeck = new System.Collections.Generic.List<EventDefinition>
+            {
+                oilShock, drought, heatwave, importCut, coldSnap, storm
+            };
 
             ScenarioDefinition usa = CreateOrLoadScenario("Assets/Data/Scenarios/Scenario_FederalHighBudget.asset");
             usa.Id = "usa_like";

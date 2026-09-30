@@ -14,9 +14,6 @@ namespace MinistryOfPower.UI
     {
         public const string GameSceneName = "MinistryDesk";
 
-        private enum Screen { Root, Scenario, Difficulty, Load, Settings }
-
-        private Screen _screen = Screen.Root;
         private string _scenarioId = "usa_like";
         private DifficultyId _difficulty = DifficultyId.Normal;
         private Text _title;
@@ -61,7 +58,6 @@ namespace MinistryOfPower.UI
 
         private void ShowRoot()
         {
-            _screen = Screen.Root;
             _title.text = "THE MINISTRY OF POWER";
             _body.text = "Grey-box Paradox desk — New Game, Load, Settings, or Quit.";
             ClearButtons();
@@ -70,8 +66,10 @@ namespace MinistryOfPower.UI
             if (continueSlot >= 0)
             {
                 SaveSlotMeta meta = SaveGameSystem.PeekSlot(continueSlot);
-                AddBtn($"Continue — {meta.ScenarioName} · {meta.DifficultyName} · {meta.DateLabel}",
-                    () => LoadSlot(continueSlot), ref y, 0.14f);
+                string scenario = string.IsNullOrEmpty(meta.ScenarioName) ? "last save" : meta.ScenarioName;
+                string subtitle = $"{scenario} · {meta.DifficultyName} · {meta.DateLabel}";
+                AddBtn($"Continue\n{subtitle}",
+                    () => LoadSlot(continueSlot), ref y, 0.16f);
             }
 
             AddBtn("New Game", ShowScenario, ref y);
@@ -82,7 +80,6 @@ namespace MinistryOfPower.UI
 
         private void ShowScenario()
         {
-            _screen = Screen.Scenario;
             _title.text = "SELECT SCENARIO";
             PrototypeContentFactory.CreateUsaLike(out ScenarioConfig fed, out _);
             PrototypeContentFactory.CreateSunRich(out ScenarioConfig sun, out _);
@@ -96,7 +93,6 @@ namespace MinistryOfPower.UI
 
         private void ShowDifficulty()
         {
-            _screen = Screen.Difficulty;
             _title.text = "SELECT DIFFICULTY";
             PrototypeContentFactory.TryCreateById(_scenarioId, out ScenarioConfig sc, out _);
             float baseBudget = sc.StartingBudget;
@@ -114,7 +110,6 @@ namespace MinistryOfPower.UI
 
         private void ShowLoad()
         {
-            _screen = Screen.Load;
             _title.text = "LOAD GAME";
             _body.text = "Choose a save slot.";
             ClearButtons();
@@ -135,7 +130,6 @@ namespace MinistryOfPower.UI
 
         private void ShowSettings()
         {
-            _screen = Screen.Settings;
             _title.text = "SETTINGS";
             RefreshSettingsBody();
             ClearButtons();

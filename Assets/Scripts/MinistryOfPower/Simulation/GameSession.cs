@@ -67,6 +67,16 @@ namespace MinistryOfPower.Simulation
         public float FossilLobbyConfidencePenalty;
         public float QuarterlyUpkeep;
         public float DailyFuelUse;
+
+        public string FormatCatalogTooltip()
+        {
+            string fuel = ResourceStockpile.NeedsStock(ResultFuel) ? ResultFuel.ToString() : "none";
+            string pay = PaymentMode == BuildPaymentMode.Upfront
+                ? $"upfront ${UpfrontCost:0}"
+                : $"${UpfrontCost:0} + ${QuarterlyCost:0}/q";
+            return $"{DisplayName}\n{pay} · {ResultCapacityMw:0} MW · upkeep {QuarterlyUpkeep:0.0}/q\n" +
+                   $"Fuel {fuel} · {DurationQuarters}q build\n{Description}";
+        }
     }
 
     public sealed class GameSession
@@ -639,6 +649,7 @@ namespace MinistryOfPower.Simulation
                 AffordAvg = aff,
                 CleanPctEnd = Meters.Transition,
                 Spend = spend,
+                NetTreasuryDelta = Budget - _yearBudgetAnchor,
                 BiggestEventTitle = _yearBiggestEvent,
                 BiggestEventSeverity = _yearBiggestSev,
                 EventCount = _yearEventCount
