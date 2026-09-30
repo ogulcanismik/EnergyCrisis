@@ -9,7 +9,7 @@ using MinistryOfPower.UI;
 
 namespace MinistryOfPower.EditorTools
 {
-    /// <summary>One-shot play capture for right-edge Orders + compact verb panel.</summary>
+    /// <summary>Play-mode captures for HUD drawer layout checks.</summary>
     public static class HudFixCapture
     {
         private const string ArmKey = "MoP.HudFixCaptureArmed";
@@ -79,27 +79,39 @@ namespace MinistryOfPower.EditorTools
                 yield break;
             }
 
-            var ort = FindNamed(hud.transform, "OrdersToggle").GetComponent<RectTransform>();
-            Debug.Log("ordersMinX=" + ort.anchorMin.x.ToString("0.000")
-                      + " maxX=" + ort.anchorMax.x.ToString("0.000"));
-
+            Directory.CreateDirectory(Path.GetFullPath("Artifacts/hud-reshell"));
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
             hud.ForceOpenChart(ParadoxChromeHud.MenuId.None);
-            Directory.CreateDirectory(Path.GetFullPath("Artifacts/hud-reshell"));
 
-            yield return new WaitForEndOfFrame();
-            yield return new WaitForEndOfFrame();
-            Write("Artifacts/hud-reshell/hud-layout-v2-orders-edge.png");
-
-            hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
+            // Chart drawer — expect horizontally centered.
+            hud.ForceOpenChart(ParadoxChromeHud.MenuId.Budget);
             yield return null;
             yield return new WaitForSecondsRealtime(0.2f);
             yield return new WaitForEndOfFrame();
-            Write("Artifacts/hud-reshell/hud-layout-v2-verb-panel.png");
+            var chartRt = FindNamed(hud.transform, "ChartDrawer").GetComponent<RectTransform>();
+            float mid = (chartRt.anchorMin.x + chartRt.anchorMax.x) * 0.5f;
+            Debug.Log("chartMidX=" + mid.ToString("0.000")
+                      + " min=" + chartRt.anchorMin.ToString("F3")
+                      + " max=" + chartRt.anchorMax.ToString("F3"));
+            Write("Artifacts/hud-reshell/hud-chart-drawer-mid.png");
 
-            var srt = FindNamed(hud.transform, "SidePanel").GetComponent<RectTransform>();
-            Debug.Log("side " + srt.anchorMin.ToString("F3") + "-" + srt.anchorMax.ToString("F3"));
-            Debug.Log("SHOT_FIX_OK");
+            hud.ForceOpenChart(ParadoxChromeHud.MenuId.None);
+
+            // 24h drawer — expect right-anchored next to DuckBtn.
+            var duckBtn = FindNamed(hud.transform, "DuckBtn");
+            duckBtn.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            yield return null;
+            yield return new WaitForSecondsRealtime(0.2f);
+            yield return new WaitForEndOfFrame();
+            var duckRt = FindNamed(hud.transform, "DuckDrawer").GetComponent<RectTransform>();
+            var btnRt = duckBtn.GetComponent<RectTransform>();
+            Debug.Log("duckDrawer " + duckRt.anchorMin.ToString("F3") + "-" + duckRt.anchorMax.ToString("F3")
+                      + " btnX0=" + btnRt.anchorMin.x.ToString("0.000"));
+            Write("Artifacts/hud-reshell/hud-24h-drawer-right.png");
+
+            Debug.Log(Mathf.Abs(mid - 0.5f) < 0.03f && duckRt.anchorMax.x > 0.55f
+                ? "SHOT_DRAWER_LAYOUT_OK"
+                : "SHOT_DRAWER_LAYOUT_CHECK");
             EditorApplication.isPlaying = false;
         }
 

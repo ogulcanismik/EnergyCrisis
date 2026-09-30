@@ -1419,10 +1419,15 @@ namespace MinistryOfPower.UI
                 ToggleDuck, UiFactory.Hex("3A2E22"), accent, 9, "24h load / supply (daily duck)");
             _duckToggleLabel = duckBtn.GetComponentInChildren<Text>();
 
-            // Shared bottom-center drawer host (stops short of right Orders rail).
-            float drawerMaxX = Mathf.Min(_rightDrawerMinX - 0.008f, ordersX0 - 0.01f);
+            // 24h drawer expands left/up from the DuckBtn (right-anchored to that control).
+            const float duckPanelW = 0.38f;
+            const float duckPanelH = 0.34f;
+            float duckDrawerX1 = duckX0 - 0.003f;
+            float duckDrawerX0 = duckDrawerX1 - duckPanelW;
+            float duckDrawerY0 = duckY0;
+            float duckDrawerY1 = duckY0 + duckPanelH;
             var duck = UiFactory.Panel(canvasGo.transform, "DuckDrawer",
-                new Vector2(0.40f, bot), new Vector2(drawerMaxX, 0.40f), panel);
+                new Vector2(duckDrawerX0, duckDrawerY0), new Vector2(duckDrawerX1, duckDrawerY1), panel);
             _duckDrawer = duck.gameObject;
             UiFactory.Label(duck.transform, "DuckTitle", accent, 12, FontStyle.Bold,
                 new Vector2(0.03f, 0.90f), new Vector2(0.90f, 0.98f)).text = "24h DISPATCH";
@@ -1433,9 +1438,17 @@ namespace MinistryOfPower.UI
                 new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.88f));
             _duckDrawer.SetActive(false);
             _duckOpen = false;
+            // Keep the 24h chip above the expanded panel for toggle-close.
+            duckBtn.transform.SetAsLastSibling();
 
+            // Chart report drawer — horizontally centered, lower/mid band.
+            const float chartPanelW = 0.42f;
+            float chartX0 = (1f - chartPanelW) * 0.5f;
+            float chartX1 = chartX0 + chartPanelW;
+            float chartDrawerY0 = bot + 0.04f;
+            const float chartDrawerY1 = 0.44f;
             var chart = UiFactory.Panel(canvasGo.transform, "ChartDrawer",
-                new Vector2(0.40f, bot), new Vector2(drawerMaxX, 0.40f), panel);
+                new Vector2(chartX0, chartDrawerY0), new Vector2(chartX1, chartDrawerY1), panel);
             _chartDrawer = chart.gameObject;
             _chartTitle = UiFactory.Label(chart.transform, "ChartTitle", accent, 12, FontStyle.Bold,
                 new Vector2(0.03f, 0.90f), new Vector2(0.90f, 0.98f));
