@@ -416,21 +416,12 @@ namespace MinistryOfPower.UI
         private void ApplyTimeCluster(GameSession s)
         {
             if (_dateTimeText == null) return;
-            float hour = s.Clock.DayFraction * 24f;
-            bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
-            bool day = hour >= 6f && hour < 20f;
-            // Always bind a visible clock string — never blank the date row.
-            _dateTimeText.text =
-                s.Clock.FormatDate() + "  " + s.Clock.FormatTimeOfDay() +
-                "  ·  " + s.Clock.CurrentSeason +
-                "  ·  " + (day ? "DAY" : "NIGHT");
+            // Compact: 15/Jan/2026 · 14:00 — no season / day-night / peak chrome.
+            _dateTimeText.text = s.Clock.FormatHudDateTime();
             if (_dateTimeText.color.a < 0.9f)
                 _dateTimeText.color = UiFactory.Hex("E7DCC8");
             if (_tickText != null)
-            {
-                _tickText.text = peak ? "PEAK" : "OFF-PEAK";
-                _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
-            }
+                _tickText.gameObject.SetActive(false);
         }
 
         private void NudgePlaySpeed(int delta)
@@ -990,9 +981,9 @@ namespace MinistryOfPower.UI
             if (_leftPanel == null) return;
             var rt = _leftPanel.GetComponent<RectTransform>();
             if (rt == null) return;
-            // Drawer sits under the horizontal tab chip row (tab row occupies ~0.855–0.905).
+            // Drawer sits under the horizontal tab chip row (tab row occupies ~0.915–0.955).
             rt.anchorMin = new Vector2(0f, _chromeBottom);
-            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.855f);
+            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.915f);
         }
 
         private void ToggleOrders()
@@ -1055,69 +1046,69 @@ namespace MinistryOfPower.UI
             float scale = Mathf.Clamp(_timeControlScale, 0.6f, 1.4f);
             float timeLeft = Mathf.Clamp(1f - 0.32f * scale, 0.65f, 0.76f);
 
-            // ——— TOP BAR: vitals left; date/hour above − / speed / + right ———
-            UiFactory.Panel(canvasGo.transform, "TopBar", new Vector2(0f, 0.905f), new Vector2(1f, 1f), bar);
+            // Thin single-row top: vitals left · date/hour + − Nx + right.
+            const float topY0 = 0.955f;
+            const float topY1 = 1f;
+            UiFactory.Panel(canvasGo.transform, "TopBar", new Vector2(0f, topY0), new Vector2(1f, topY1), bar);
 
-            _treasuryText = UiFactory.Label(canvasGo.transform, "Treasury", paper, 13, FontStyle.Bold,
-                new Vector2(0.008f, 0.93f), new Vector2(0.18f, 0.995f));
-            _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, 13, FontStyle.Bold,
-                new Vector2(0.18f, 0.93f), new Vector2(0.30f, 0.995f));
-            _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
-                new Vector2(0.30f, 0.93f), new Vector2(Mathf.Max(0.48f, timeLeft - 0.01f), 0.995f));
+            int vitalsFont = Mathf.Max(10, _hudBodyFontSize);
+            _treasuryText = UiFactory.Label(canvasGo.transform, "Treasury", paper, vitalsFont, FontStyle.Bold,
+                new Vector2(0.008f, topY0), new Vector2(0.17f, topY1));
+            _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, vitalsFont, FontStyle.Bold,
+                new Vector2(0.17f, topY0), new Vector2(0.28f, topY1));
+            _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, vitalsFont, FontStyle.Bold,
+                new Vector2(0.28f, topY0), new Vector2(Mathf.Max(0.46f, timeLeft - 0.01f), topY1));
 
-            // Compact time cluster (right): date/hour/season ABOVE Pause/1x/2x/5x/Skip.
-            // Scale widens/narrows the cluster, but the date row always keeps a readable span
-            // (never collapse via timeControlScale — GameTuning must not hide the clock).
-            const float peakLeft = 0.895f;
-            const float dateTop = 0.958f;
-            const float dateBot = 0.995f;
-            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(timeLeft, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
-            float dateRight = Mathf.Max(timeLeft + 0.18f, peakLeft - 0.002f);
-            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, Mathf.Max(12, _timeControlFontSize + 2), FontStyle.Bold,
-                new Vector2(timeLeft + 0.006f, dateTop), new Vector2(dateRight, dateBot), TextAnchor.MiddleLeft);
+            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(timeLeft, topY0), new Vector2(1f, topY1), UiFactory.Hex("2B2118"));
+            // Compact − / Nx / + chips (same height band as vitals).
+            float chipHPad = 0.008f;
+            float speedY0 = topY0 + chipHPad;
+            float speedY1 = topY1 - chipHPad;
+            float chipW = Mathf.Clamp(_timeSpeedSlotWidth * 0.45f, 0.018f, 0.028f);
+            float labelW = 0.034f;
+            const float speedGap = 0.003f;
+            float clusterW = chipW * 2f + labelW + speedGap * 2f;
+            float speedX0 = 0.995f - clusterW;
+            int spdFont = Mathf.Max(9, _timeControlFontSize);
+            int dateFont = Mathf.Max(10, _timeControlFontSize);
+
+            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, dateFont, FontStyle.Bold,
+                new Vector2(timeLeft + 0.006f, topY0), new Vector2(speedX0 - 0.006f, topY1), TextAnchor.MiddleLeft);
             _dateTimeText.horizontalOverflow = HorizontalWrapMode.Overflow;
             _dateTimeText.verticalOverflow = VerticalWrapMode.Overflow;
             _dateTimeText.raycastTarget = false;
-            _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 10, FontStyle.Bold,
-                new Vector2(peakLeft, dateTop), new Vector2(0.995f, dateBot), TextAnchor.MiddleCenter);
-            _tickText.raycastTarget = false;
-            // − / current speed / +  (1×…5× clamp; pause via ESC only)
-            const float speedY0 = 0.908f;
-            const float speedY1 = 0.952f;
-            float speedX0 = timeLeft + 0.01f;
-            float speedSlot = Mathf.Clamp(_timeSpeedSlotWidth, 0.045f, 0.10f);
-            const float speedGap = 0.006f;
-            int spdFont = Mathf.Max(11, _timeControlFontSize + 1);
+            _tickText = null; // peak / season / day-night removed from time chrome
+
             UiFactory.Button(canvasGo.transform, "SpdMinus", "−",
-                new Vector2(speedX0, speedY0), new Vector2(speedX0 + speedSlot, speedY1),
+                new Vector2(speedX0, speedY0), new Vector2(speedX0 + chipW, speedY1),
                 () => NudgePlaySpeed(-1), accent, ink, spdFont, "Slower (min 1×)");
-            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, Mathf.Max(12, spdFont + 1), FontStyle.Bold,
-                new Vector2(speedX0 + speedSlot + speedGap, speedY0),
-                new Vector2(speedX0 + 2f * speedSlot + speedGap, speedY1), TextAnchor.MiddleCenter);
+            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, spdFont, FontStyle.Bold,
+                new Vector2(speedX0 + chipW + speedGap, speedY0),
+                new Vector2(speedX0 + chipW + speedGap + labelW, speedY1), TextAnchor.MiddleCenter);
             _speedText.raycastTarget = false;
             _speedText.text = "1x";
             UiFactory.Button(canvasGo.transform, "SpdPlus", "+",
-                new Vector2(speedX0 + 2f * speedSlot + 2f * speedGap, speedY0),
-                new Vector2(Mathf.Min(0.995f, speedX0 + 3f * speedSlot + 2f * speedGap), speedY1),
+                new Vector2(speedX0 + chipW + speedGap + labelW + speedGap, speedY0),
+                new Vector2(0.995f, speedY1),
                 () => NudgePlaySpeed(+1), accent, ink, spdFont, "Faster (max 5×)");
 
-            var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
+            var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.86f), new Vector2(0.72f, 0.91f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;
-            _seasonBannerText = UiFactory.Label(seasonImg.transform, "ST", accent, 15, FontStyle.Bold,
+            _seasonBannerText = UiFactory.Label(seasonImg.transform, "ST", accent, 14, FontStyle.Bold,
                 new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.9f), TextAnchor.MiddleCenter);
             _seasonBanner.SetActive(false);
 
-            var tipImg = UiFactory.Panel(canvasGo.transform, "TipBanner", new Vector2(0.22f, 0.76f), new Vector2(0.78f, 0.835f), UiFactory.Hex("3A2E22"));
+            var tipImg = UiFactory.Panel(canvasGo.transform, "TipBanner", new Vector2(0.22f, 0.80f), new Vector2(0.78f, 0.855f), UiFactory.Hex("3A2E22"));
             _tipBanner = tipImg.gameObject;
-            _tipText = UiFactory.Label(tipImg.transform, "TipT", paper, 13, FontStyle.Italic,
+            _tipText = UiFactory.Label(tipImg.transform, "TipT", paper, 12, FontStyle.Italic,
                 new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), TextAnchor.MiddleCenter);
             _tipBanner.SetActive(false);
 
             // ——— TOP-LEFT TAB CHIPS: horizontal row under vitals (exclusive) ———
             float leftMax = _leftDrawerMaxX;
             float bot = Mathf.Clamp(_chromeBottom, 0.05f, 0.12f);
-            const float tabY0 = 0.855f;
-            const float tabY1 = 0.905f;
+            const float tabY0 = 0.915f;
+            const float tabY1 = 0.955f;
             UiFactory.Panel(canvasGo.transform, "TabRow", new Vector2(0f, tabY0), new Vector2(leftMax, tabY1), bar);
             float tx = 0.008f;
             float tabW = (leftMax - 0.016f) / 4f;
@@ -1410,7 +1401,7 @@ namespace MinistryOfPower.UI
                 "Wireframe desk shell — map first, exclusive top-left tabs.\n\n" +
                 "· Top-left: treasury / conf / margin.\n" +
                 "· Under vitals: Construction / Deals / Cabinet / Subsidies chips (one at a time).\n" +
-                "· Top-right: date + hour/season/peak above − / speed / + (1×…5×).\n" +
+                "· Top-right: 15/Jan/2026 · 14:00 and − / speed / + (1×…5×).\n" +
                 "· Right: ESC system menu · Orders summary (builds + deadlines).\n" +
                 "· Bottom-left: Charts buttons open report drawers · thin 24h peek.\n" +
                 "· Bottom-right: map lenses placeholder (later).\n" +

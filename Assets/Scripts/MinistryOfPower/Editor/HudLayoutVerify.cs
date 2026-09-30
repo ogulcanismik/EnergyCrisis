@@ -107,6 +107,7 @@ namespace MinistryOfPower.EditorTools
             var spdPlus = FindRt(chrome, "SpdPlus");
             var spdLabel = FindText(chrome, "Spd");
             var timeBar = FindRt(chrome, "TimeBar");
+            var topBar = FindRt(chrome, "TopBar");
             var side = FindGo(chrome, "SidePanel");
             var filterToggle = FindGo(chrome, "FilterToggle");
             var dealBrief = FindGo(chrome, "DealBriefToggle");
@@ -145,7 +146,8 @@ namespace MinistryOfPower.EditorTools
             }
 
             sb.Append("hud=").Append(true).AppendLine();
-            sb.Append("date=").Append(date != null).Append(" tick=").Append(tick != null).AppendLine();
+            sb.Append("date=").Append(date != null)
+                .Append(" tickGone=").Append(tick == null || !tick.gameObject.activeInHierarchy).AppendLine();
             sb.Append("escBtn=").Append(escBtn != null).Append(" ordersPanel=").Append(ordersPanel != null).AppendLine();
             sb.Append("chartMix=").Append(chartMix != null).Append(" chartBudget=").Append(chartBudget != null).AppendLine();
             sb.Append("tabRow=").Append(tabRow != null).Append(" leftTabs=")
@@ -184,6 +186,8 @@ namespace MinistryOfPower.EditorTools
             bool stackOk = false;
             bool narrowOk = false;
             bool dateVisible = false;
+            bool compactTop = false;
+            bool hudDateFmt = false;
             sb.Append("spdMinus=").Append(spdMinus != null)
                 .Append(" spdPlus=").Append(spdPlus != null)
                 .Append(" spdLabel=").Append(spdLabel != null).AppendLine();
@@ -193,24 +197,34 @@ namespace MinistryOfPower.EditorTools
                 .Append(" legacyS1=").Append(legacyS1 != null).AppendLine();
             if (date != null && spdMinus != null)
             {
-                float dateY = date.rectTransform.anchorMin.y;
-                float btnY = spdMinus.anchorMax.y;
-                stackOk = dateY >= btnY - 0.001f;
+                // Single-row top: date and −/+ share the same thin band.
+                float dateMidY = (date.rectTransform.anchorMin.y + date.rectTransform.anchorMax.y) * 0.5f;
+                float btnMidY = (spdMinus.anchorMin.y + spdMinus.anchorMax.y) * 0.5f;
+                stackOk = Mathf.Abs(dateMidY - btnMidY) < 0.03f;
                 float dateW = date.rectTransform.anchorMax.x - date.rectTransform.anchorMin.x;
                 string dateSample = (date.text ?? "").Replace('\n', ' ').Trim();
                 dateVisible = date.gameObject.activeInHierarchy
                               && date.enabled
                               && date.color.a >= 0.9f
-                              && dateW >= 0.15f
+                              && dateW >= 0.10f
                               && dateSample.Length >= 8;
-                sb.Append("dateAnchorMinY=").Append(dateY.ToString("0.000"))
-                    .Append(" minusAnchorMaxY=").Append(btnY.ToString("0.000"))
-                    .Append(" dateAboveSpeeds=").Append(stackOk).AppendLine();
+                hudDateFmt = System.Text.RegularExpressions.Regex.IsMatch(dateSample, @"^\d{1,2}/[A-Za-z]{3}/\d{4}");
+                sb.Append("dateMidY=").Append(dateMidY.ToString("0.000"))
+                    .Append(" minusMidY=").Append(btnMidY.ToString("0.000"))
+                    .Append(" sameRow=").Append(stackOk).AppendLine();
                 sb.Append("dateWidth=").Append(dateW.ToString("0.000"))
-                    .Append(" dateVisible=").Append(dateVisible).AppendLine();
+                    .Append(" dateVisible=").Append(dateVisible)
+                    .Append(" hudDateFmt=").Append(hudDateFmt).AppendLine();
                 sb.Append("dateSample=").Append(dateSample).AppendLine();
-                sb.Append("tickSample=").Append(tick != null ? tick.text : "").AppendLine();
                 sb.Append("spdSample=").Append(spdLabel != null ? spdLabel.text : "").AppendLine();
+            }
+
+            if (topBar != null)
+            {
+                float topH = topBar.anchorMax.y - topBar.anchorMin.y;
+                compactTop = topH <= 0.055f && topBar.anchorMin.y >= 0.94f;
+                sb.Append("topBarH=").Append(topH.ToString("0.000"))
+                    .Append(" compactTop=").Append(compactTop).AppendLine();
             }
 
             if (timeBar != null)
@@ -225,9 +239,11 @@ namespace MinistryOfPower.EditorTools
             if (spdMinus != null)
             {
                 float btnW = spdMinus.anchorMax.x - spdMinus.anchorMin.x;
+                float btnH = spdMinus.anchorMax.y - spdMinus.anchorMin.y;
                 sb.Append("minusBtnWidth=").Append(btnW.ToString("0.000"))
-                    .Append(" minusNarrow=").Append(btnW <= 0.10f).AppendLine();
-                narrowOk = narrowOk && btnW <= 0.10f;
+                    .Append(" minusBtnH=").Append(btnH.ToString("0.000"))
+                    .Append(" minusCompact=").Append(btnW <= 0.035f && btnH <= 0.04f).AppendLine();
+                narrowOk = narrowOk && btnW <= 0.035f;
             }
 
             // Exclusive menus: Construction, then Budget chart drawer, then Construction again.
@@ -264,7 +280,8 @@ namespace MinistryOfPower.EditorTools
 
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
 
-            bool ok = date != null && tick != null && spdMinus != null && spdPlus != null && spdLabel != null
+            bool tickGone = tick == null || !tick.gameObject.activeInHierarchy;
+            bool ok = date != null && tickGone && spdMinus != null && spdPlus != null && spdLabel != null
                       && escBtn != null && ordersPanel != null
                       && chartMix != null && chartBudget != null
                       && tabRow != null
@@ -273,6 +290,7 @@ namespace MinistryOfPower.EditorTools
                       && tabsHorizontal
                       && filterToggle != null && dealBrief != null
                       && stackOk && narrowOk && exclusiveOk && chartLive && dateVisible
+                      && compactTop && hudDateFmt
                       && legacyReports == null && legacyFlyout == null
                       && legacyLobby == null && legacyRightCab == null
                       && fatEmergency == null && legacyLeftRail == null

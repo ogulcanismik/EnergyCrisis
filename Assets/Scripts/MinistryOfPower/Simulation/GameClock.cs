@@ -153,6 +153,27 @@ namespace MinistryOfPower.Simulation
             return $"{Year:D4}-{Month:D2}-{DayOfMonth:D2}";
         }
 
+        private static readonly string[] MonthAbbrevs =
+        {
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        };
+
+        /// <summary>HUD date: <c>15/Jan/2026</c>.</summary>
+        public string FormatHudDate()
+        {
+            int m = Month;
+            if (m < 1) m = 1;
+            if (m > 12) m = 12;
+            return DayOfMonth + "/" + MonthAbbrevs[m - 1] + "/" + Year;
+        }
+
+        /// <summary>Compact HUD clock: <c>15/Jan/2026 · 14:00</c>.</summary>
+        public string FormatHudDateTime()
+        {
+            return FormatHudDate() + " · " + FormatTimeOfDay();
+        }
+
         public string FormatTimeOfDay()
         {
             int minutes = (int)(DayFraction * 24f * 60f);
