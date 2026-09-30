@@ -11,6 +11,9 @@ namespace MinistryOfPower.Data
         public PlantDefinition Definition;
         public string OverrideName;
         public float CapacityMwOverride;
+        [Tooltip("When RegionExplicit, plant is sited in this region instead of DefaultRegionForFuel.")]
+        public RegionId Region = RegionId.North;
+        public bool RegionExplicit;
     }
 
     /// <summary>Per-scenario weight override for a deck event kind (ColdSnap/Storm, etc.).</summary>
@@ -27,14 +30,18 @@ namespace MinistryOfPower.Data
         public string Id = "scenario";
         public string DisplayName = "Scenario";
         [TextArea(2, 6)] public string Description;
+        [TextArea(1, 3)] public string DifferentiationBlurb;
         public int StartYear = 2026;
         public int Seed = 42;
+        public int CampaignYears = MandateTracker.DefaultCampaignYears;
         public float StartingBudget = 100f;
         public float QuarterlyIncome = 12f;
         public float BaseDemandMw = 1000f;
         public float SolarResource = 1f;
         public float WindResource = 1f;
         [Range(0f, 1f)] public float FossilLobbyStrength = 0.5f;
+        [Tooltip("Extra multiplier on fossil-retire confidence hits (factory Federal 1.55 / Sun-Rich 0.55).")]
+        public float LobbyRetireMultiplier = 1f;
         [Tooltip("Baseline import / interconnector MW available in the day resolve.")]
         public float ImportCapacityMw = 80f;
         public float StartingAdequacy = 72f;
@@ -54,14 +61,17 @@ namespace MinistryOfPower.Data
                 Id = Id,
                 DisplayName = DisplayName,
                 Description = Description,
+                DifferentiationBlurb = DifferentiationBlurb ?? "",
                 StartYear = StartYear,
                 Seed = Seed,
+                CampaignYears = CampaignYears > 0 ? CampaignYears : MandateTracker.DefaultCampaignYears,
                 StartingBudget = StartingBudget,
                 QuarterlyIncome = QuarterlyIncome,
                 BaseDemandMw = BaseDemandMw,
                 SolarResource = SolarResource,
                 WindResource = WindResource,
                 FossilLobbyStrength = FossilLobbyStrength,
+                LobbyRetireMultiplier = LobbyRetireMultiplier,
                 ImportCapacityMw = ImportCapacityMw,
                 StartingAdequacy = StartingAdequacy,
                 StartingAffordability = StartingAffordability,
@@ -92,7 +102,10 @@ namespace MinistryOfPower.Data
                 }
 
                 float? cap = entry.CapacityMwOverride > 0f ? entry.CapacityMwOverride : (float?)null;
-                config.StartingPlants.Add(entry.Definition.ToSpawn(entry.OverrideName, cap));
+                config.StartingPlants.Add(entry.Definition.ToSpawn(
+                    entry.OverrideName,
+                    cap,
+                    entry.RegionExplicit ? entry.Region : (RegionId?)null));
             }
 
             return config;
