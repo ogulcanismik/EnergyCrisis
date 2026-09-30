@@ -79,6 +79,7 @@ namespace MinistryOfPower.UI
         private Text _yearTitle;
         private Text _yearBody;
         private SupplyDemandStrip _strip;
+        private ReportChartsHost _reportCharts;
         private GameObject _buildActions;
         private GameObject _buildFilterBar;
         private GameObject _dealActions;
@@ -222,6 +223,7 @@ namespace MinistryOfPower.UI
             if (_yearModal == null || report == null) return;
             _yearTitle.text = "YEAR " + report.Year + " REPORT";
             _yearBody.text = report.FormatModal();
+            _reportCharts?.ShowYear(report);
             _yearModal.SetActive(true);
             _onPause?.Invoke();
         }
@@ -229,6 +231,7 @@ namespace MinistryOfPower.UI
         public void HideYearReport()
         {
             if (_yearModal != null) _yearModal.SetActive(false);
+            _reportCharts?.HideYear();
             _onNormal?.Invoke();
         }
 
@@ -237,6 +240,10 @@ namespace MinistryOfPower.UI
             EnsureUi();
             _openMenu = id;
             if (IsReportsMenu(id)) _reportsOpen = true;
+            else if (IsPrimaryLeftMenu(id) || id == MenuId.None || id == MenuId.Cabinet)
+                _reportsOpen = false;
+            if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
+            if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
             Render();
         }
 
@@ -538,6 +545,8 @@ namespace MinistryOfPower.UI
             if (_pauseActions != null) _pauseActions.SetActive(_openMenu == MenuId.Pause);
 
             SyncReportsFlyout();
+            LayoutPanelBodyForCharts(_openMenu == MenuId.Mandate || _openMenu == MenuId.Budget);
+            _reportCharts?.ShowForMenu(_openMenu, s);
 
             // Content texts: left panel for most menus; Cabinet uses same fields for smoke.
             switch (_openMenu)
@@ -566,11 +575,11 @@ namespace MinistryOfPower.UI
                     break;
                 case MenuId.Mandate:
                     _panelTitle.text = "MANDATE / VICTORY";
-                    _panelBody.text = s.Mandate != null ? s.Mandate.FormatPanel(s) : "—";
+                    _panelBody.text = s.Mandate != null ? FormatMandateSummary(s) : "—";
                     break;
                 case MenuId.Budget:
                     _panelTitle.text = "BUDGET LEDGER";
-                    _panelBody.text = s.Ledger != null ? s.Ledger.FormatPanel(s.Budget) : "—";
+                    _panelBody.text = s.Ledger != null ? FormatBudgetSummary(s) : "—";
                     break;
                 case MenuId.History:
                     _panelTitle.text = "EVENT HISTORY";
@@ -592,6 +601,54 @@ namespace MinistryOfPower.UI
                     _panelBody.text = "";
                     break;
             }
+        }
+
+        private void LayoutPanelBodyForCharts(bool chartsVisible)
+        {
+            if (_panelBody == null) return;
+            var rt = _panelBody.rectTransform;
+            // When mandate/budget charts occupy the lower half, keep copy in the upper band.
+            if (chartsVisible)
+            {
+                rt.anchorMin = new Vector2(0.04f, 0.50f);
+                rt.anchorMax = new Vector2(0.96f, 0.90f);
+            }
+            else
+            {
+                rt.anchorMin = new Vector2(0.04f, 0.52f);
+                rt.anchorMax = new Vector2(0.96f, 0.90f);
+            }
+        }
+
+        private static string FormatMandateSummary(GameSession s)
+        {
+            // Chart carries the sparkline; keep a short victory brief above it.
+            var sb = new StringBuilder(320);
+            int endYear = s.Scenario.StartYear + s.Mandate.CampaignYears;
+            sb.Append("Campaign ").Append(s.Scenario.StartYear).Append('–').Append(endYear);
+            sb.Append(" · ").Append(s.Mandate.YearsRemaining(s.Clock, s.Scenario.StartYear)).Append("y left\n");
+            sb.Append("Win: T≥").Append(MandateTracker.WinTransition.ToString("0"))
+                .Append(" Aff≥").Append(MandateTracker.WinAffordability.ToString("0"))
+                .Append(" Adeq≥").Append(MandateTracker.WinAdequacy.ToString("0")).Append('\n');
+            sb.Append("Now: T ").Append(s.Meters.Transition.ToString("0.0"))
+                .Append("  Aff ").Append(s.Meters.Affordability.ToString("0.0"))
+                .Append("  Adeq ").Append(s.Meters.Adequacy.ToString("0.0")).Append('\n');
+            sb.Append("Streaks A").Append(s.Mandate.AdequacyGoodStreak)
+                .Append("/F").Append(s.Mandate.AffordabilityGoodStreak)
+                .Append(" · ").Append(s.Cabinet.ActiveMandate);
+            return sb.ToString();
+        }
+
+        private static string FormatBudgetSummary(GameSession s)
+        {
+            BudgetLedger led = s.Ledger;
+            var sb = new StringBuilder(280);
+            sb.Append("Treasury ").Append(DisplayUnits.Money(s.Budget)).Append('\n');
+            sb.Append("YTD in ").Append(DisplayUnits.Money(led.YearIncome))
+                .Append(" · out ").Append(DisplayUnits.Money(led.YearExpense)).Append('\n');
+            sb.Append("Last net ").Append(DisplayUnits.Money(led.LastNet, signed: true)).Append('\n');
+            sb.Append('(').Append(DisplayUnits.TreasuryExplain()).Append(')');
+            return sb.ToString();
         }
 
         private void RefreshQueueCancelButtons(GameSession s)
@@ -869,11 +926,25 @@ namespace MinistryOfPower.UI
 
         private void ToggleMenu(MenuId id)
         {
-            _openMenu = _openMenu == id ? MenuId.None : id;
-            if (IsReportsMenu(_openMenu)) _reportsOpen = true;
-            else if (_openMenu == MenuId.Construction || _openMenu == MenuId.Policy ||
-                     _openMenu == MenuId.Deals || _openMenu == MenuId.Pause || _openMenu == MenuId.None)
+            // Radio/tab: one left surface at a time. Re-click closes.
+            bool closing = _openMenu == id;
+            _openMenu = closing ? MenuId.None : id;
+
+            if (IsReportsMenu(_openMenu))
+            {
+                // Report item owns the left drawer; keep flyout as its picker.
+                _reportsOpen = true;
+            }
+            else if (IsPrimaryLeftMenu(_openMenu))
+            {
+                // Construction / Policy / Investment / Pause close Reports entirely.
                 _reportsOpen = false;
+            }
+            else if (_openMenu == MenuId.None || _openMenu == MenuId.Cabinet)
+            {
+                _reportsOpen = false;
+            }
+
             if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
             if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
             _panelDirtyMenu = (MenuId)(-1); // force side-panel rebuild
@@ -886,14 +957,39 @@ namespace MinistryOfPower.UI
                    || id == MenuId.Budget || id == MenuId.History;
         }
 
+        private static bool IsPrimaryLeftMenu(MenuId id)
+        {
+            return id == MenuId.Construction || id == MenuId.Policy
+                   || id == MenuId.Deals || id == MenuId.Pause;
+        }
+
         private void ToggleReportsFlyout()
         {
-            _reportsOpen = !_reportsOpen;
-            SyncReportsFlyout();
+            if (_reportsOpen)
+            {
+                _reportsOpen = false;
+                if (IsReportsMenu(_openMenu)) _openMenu = MenuId.None;
+            }
+            else
+            {
+                // Opening Reports closes other left drawers (exclusive).
+                if (!IsReportsMenu(_openMenu))
+                    _openMenu = MenuId.None;
+                _reportsOpen = true;
+                _buildFiltersOpen = false;
+                _dealBriefOpen = false;
+            }
+
+            _panelDirtyMenu = (MenuId)(-1);
+            Render();
         }
 
         private void SyncReportsFlyout()
         {
+            // Exclusive: flyout never stacks beside Construction/Policy/Investment/Pause.
+            if (IsPrimaryLeftMenu(_openMenu))
+                _reportsOpen = false;
+
             bool open = _reportsOpen || IsReportsMenu(_openMenu);
             if (_reportsFlyout != null) _reportsFlyout.SetActive(open);
             if (_reportsToggleLabel != null)
@@ -986,30 +1082,44 @@ namespace MinistryOfPower.UI
                 new Vector2(0.008f, 0.955f), new Vector2(0.15f, 0.995f)).text = "MINISTRY OF POWER";
 
             _treasuryText = UiFactory.Label(canvasGo.transform, "Treasury", paper, 13, FontStyle.Bold,
-                new Vector2(0.008f, 0.91f), new Vector2(0.17f, 0.955f));
+                new Vector2(0.008f, 0.91f), new Vector2(0.16f, 0.955f));
             _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, 13, FontStyle.Bold,
-                new Vector2(0.17f, 0.91f), new Vector2(0.29f, 0.955f));
+                new Vector2(0.16f, 0.91f), new Vector2(0.28f, 0.955f));
             _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
-                new Vector2(0.29f, 0.91f), new Vector2(0.48f, 0.955f));
+                new Vector2(0.28f, 0.91f), new Vector2(0.70f, 0.955f));
 
-            // Time cluster: date + hour + DAY/NIGHT + peak on top; Pause/1x/2x/5x/Skip below
-            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(0.48f, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
-            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 12, FontStyle.Bold,
-                new Vector2(0.49f, 0.955f), new Vector2(0.82f, 0.995f), TextAnchor.MiddleLeft);
-            _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 11, FontStyle.Bold,
-                new Vector2(0.82f, 0.955f), new Vector2(0.92f, 0.995f), TextAnchor.MiddleCenter);
-            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 11, FontStyle.Bold,
-                new Vector2(0.92f, 0.955f), new Vector2(0.995f, 0.995f), TextAnchor.MiddleCenter);
-            UiFactory.Button(canvasGo.transform, "P", "❚❚", new Vector2(0.49f, 0.908f), new Vector2(0.58f, 0.952f),
-                () => _onPause?.Invoke(), accent, ink, 11, "Pause");
-            UiFactory.Button(canvasGo.transform, "S1", "1x", new Vector2(0.58f, 0.908f), new Vector2(0.67f, 0.952f),
-                () => _onNormal?.Invoke(), accent, ink, 11, "1× · ~2.8 min/day");
-            UiFactory.Button(canvasGo.transform, "S2", "2x", new Vector2(0.67f, 0.908f), new Vector2(0.76f, 0.952f),
-                () => _onFast?.Invoke(), accent, ink, 11, "2× · ~84s/day");
-            UiFactory.Button(canvasGo.transform, "S5", "5x", new Vector2(0.76f, 0.908f), new Vector2(0.85f, 0.952f),
-                () => _onVeryFast?.Invoke(), accent, ink, 11, "5× · ~34s/day");
-            UiFactory.Button(canvasGo.transform, "D1", "Skip", new Vector2(0.85f, 0.908f), new Vector2(0.995f, 0.952f),
-                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 11, "Skip +1 day (not a speed)");
+            // Compact time cluster (right): date/hour above Pause/1x/2x/5x/Skip — not half the top bar.
+            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(0.70f, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
+            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 11, FontStyle.Bold,
+                new Vector2(0.705f, 0.955f), new Vector2(0.90f, 0.995f), TextAnchor.MiddleLeft);
+            _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 10, FontStyle.Bold,
+                new Vector2(0.90f, 0.955f), new Vector2(0.945f, 0.995f), TextAnchor.MiddleCenter);
+            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 10, FontStyle.Bold,
+                new Vector2(0.945f, 0.955f), new Vector2(0.995f, 0.995f), TextAnchor.MiddleCenter);
+            const float speedY0 = 0.908f;
+            const float speedY1 = 0.952f;
+            const float speedX0 = 0.705f;
+            const float speedSlot = 0.056f;
+            const float speedGap = 0.003f;
+            UiFactory.Button(canvasGo.transform, "P", "❚❚",
+                new Vector2(speedX0, speedY0), new Vector2(speedX0 + speedSlot, speedY1),
+                () => _onPause?.Invoke(), accent, ink, 10, "Pause");
+            UiFactory.Button(canvasGo.transform, "S1", "1x",
+                new Vector2(speedX0 + (speedSlot + speedGap), speedY0),
+                new Vector2(speedX0 + 2f * speedSlot + speedGap, speedY1),
+                () => _onNormal?.Invoke(), accent, ink, 10, "1× · 168s/day");
+            UiFactory.Button(canvasGo.transform, "S2", "2x",
+                new Vector2(speedX0 + 2f * (speedSlot + speedGap), speedY0),
+                new Vector2(speedX0 + 3f * speedSlot + 2f * speedGap, speedY1),
+                () => _onFast?.Invoke(), accent, ink, 10, "2× · ~84s/day");
+            UiFactory.Button(canvasGo.transform, "S5", "5x",
+                new Vector2(speedX0 + 3f * (speedSlot + speedGap), speedY0),
+                new Vector2(speedX0 + 4f * speedSlot + 3f * speedGap, speedY1),
+                () => _onVeryFast?.Invoke(), accent, ink, 10, "5× · ~34s/day");
+            UiFactory.Button(canvasGo.transform, "D1", "Skip",
+                new Vector2(speedX0 + 4f * (speedSlot + speedGap), speedY0),
+                new Vector2(0.995f, speedY1),
+                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 10, "Skip +1 day (not a speed)");
 
             var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;
@@ -1055,6 +1165,8 @@ namespace MinistryOfPower.UI
                 new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
             _panelBody = UiFactory.Label(side.transform, "PBody", paper, 11, FontStyle.Normal,
                 new Vector2(0.04f, 0.52f), new Vector2(0.96f, 0.9f), TextAnchor.UpperLeft);
+
+            _reportCharts = ReportChartsHost.Create(side.transform);
 
             var filterToggle = UiFactory.Button(side.transform, "FilterToggle", "Filters ▾",
                 new Vector2(0.04f, 0.455f), new Vector2(0.36f, 0.51f),
@@ -1282,16 +1394,17 @@ namespace MinistryOfPower.UI
                 () => CloseConfirm(false), UiFactory.Hex("3A2E22"), paper, 14);
             _confirmModal.SetActive(false);
 
-            var year = UiFactory.Panel(canvasGo.transform, "YearModal", new Vector2(0.26f, 0.26f), new Vector2(0.74f, 0.74f), UiFactory.Hex("1E1812"));
+            var year = UiFactory.Panel(canvasGo.transform, "YearModal", new Vector2(0.26f, 0.22f), new Vector2(0.74f, 0.78f), UiFactory.Hex("1E1812"));
             _yearModal = year.gameObject;
             _yearTitle = UiFactory.Label(year.transform, "YT", accent, 22, FontStyle.Bold,
-                new Vector2(0.06f, 0.78f), new Vector2(0.94f, 0.95f), TextAnchor.MiddleCenter);
-            _yearBody = UiFactory.Label(year.transform, "YB", paper, 14, FontStyle.Normal,
-                new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.76f), TextAnchor.UpperLeft);
+                new Vector2(0.06f, 0.88f), new Vector2(0.94f, 0.97f), TextAnchor.MiddleCenter);
+            _yearBody = UiFactory.Label(year.transform, "YB", paper, 13, FontStyle.Normal,
+                new Vector2(0.08f, 0.50f), new Vector2(0.92f, 0.86f), TextAnchor.UpperLeft);
             UiFactory.Button(year.transform, "YOk", "Continue the mandate",
-                new Vector2(0.25f, 0.06f), new Vector2(0.75f, 0.18f),
+                new Vector2(0.25f, 0.04f), new Vector2(0.75f, 0.14f),
                 HideYearReport, UiFactory.Hex("8B6914"), paper, 14);
             _yearModal.SetActive(false);
+            _reportCharts?.AttachYearChart(year.transform);
 
             var modal = UiFactory.Panel(canvasGo.transform, "EventModal", new Vector2(0.22f, 0.22f), new Vector2(0.78f, 0.78f), UiFactory.Hex("241C14"));
             _eventModal = modal.gameObject;
@@ -1342,11 +1455,11 @@ namespace MinistryOfPower.UI
                 new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.96f), TextAnchor.MiddleCenter).text = "MINISTER'S BRIEF";
             UiFactory.Label(help.transform, "HB", paper, 13, FontStyle.Normal,
                 new Vector2(0.06f, 0.2f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft).text =
-                "Paradox desk shell — one HUD, no stacked leftovers.\n\n" +
-                "· Top: treasury / conf / margin · date+hour above Pause/1x/2x/5x.\n" +
-                "· Left: Construction / Policy / Investment · Reports submenu · Pause.\n" +
+                "Paradox desk shell — one HUD, exclusive left tabs.\n\n" +
+                "· Top: treasury / conf / margin · compact date+hour above Pause/1x/2x/5x.\n" +
+                "· Left: Construction / Policy / Investment · Reports submenu · Pause (one at a time).\n" +
                 "· Right: Lobby meters (+ info submenu) · Cabinet levers.\n" +
-                "· Bottom: 24h load/supply curve + emergency import/reserve.\n" +
+                "· Bottom: 24h load/supply chart + emergency import/reserve.\n" +
                 "· Map center: USA grey-box regions, plants, transmission lines.\n" +
                 "· Left-click regions/plants · hold right-mouse to pan · scroll to zoom.\n" +
                 "· Crisis modals for adequacy trade-offs.";

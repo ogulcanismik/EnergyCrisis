@@ -7,10 +7,13 @@ using UnityEngine.UI;
 using MinistryOfPower.Runtime;
 using MinistryOfPower.Simulation;
 using MinistryOfPower.UI;
+using MinistryOfPower.UI.Charts;
 
 namespace MinistryOfPower.EditorTools
 {
-    /// <summary>Play-mode check: date/hour stacked above speeds; Reports submenu present.</summary>
+    /// <summary>
+    /// Play-mode check: compact time cluster, exclusive left menus, live mesh chart.
+    /// </summary>
     public static class HudLayoutVerify
     {
         private const string ArmKey = "MoP.HudLayoutArmed";
@@ -81,12 +84,12 @@ namespace MinistryOfPower.EditorTools
             }
 
             if (EditorApplication.timeSinceStartup - _enteredAt < 1.0) return;
-            Finish(BuildReport(hud));
+            Finish(BuildReport(hud, runner.Session));
         }
 
-        private static string BuildReport(ParadoxChromeHud hud)
+        private static string BuildReport(ParadoxChromeHud hud, GameSession session)
         {
-            var sb = new StringBuilder(1024);
+            var sb = new StringBuilder(1600);
             sb.AppendLine("=== HUD LAYOUT VERIFY ===");
             Transform chrome = null;
             foreach (Transform t in hud.GetComponentsInChildren<Transform>(true))
@@ -102,13 +105,27 @@ namespace MinistryOfPower.EditorTools
             Text tick = FindText(chrome, "Tick");
             var pause = FindRt(chrome, "P");
             var s1 = FindRt(chrome, "S1");
+            var timeBar = FindRt(chrome, "TimeBar");
             var reports = FindRt(chrome, "M_Reports");
             var flyout = FindGo(chrome, "ReportsFlyout");
+            var side = FindGo(chrome, "SidePanel");
             var lobbyInfo = FindGo(chrome, "LobbyInfo");
             var filterToggle = FindGo(chrome, "FilterToggle");
             var dealBrief = FindGo(chrome, "DealBriefToggle");
             var mandateRail = FindGo(chrome, "M_Mandate");
             var budgetRail = FindGo(chrome, "M_Budget");
+            UguiMeshChart dispatchChart = null;
+            if (chrome != null)
+            {
+                foreach (var c in chrome.GetComponentsInChildren<UguiMeshChart>(true))
+                {
+                    if (c != null && c.gameObject.name == "DispatchChart")
+                    {
+                        dispatchChart = c;
+                        break;
+                    }
+                }
+            }
 
             sb.Append("hud=").Append(true).AppendLine();
             sb.Append("date=").Append(date != null).Append(" tick=").Append(tick != null).AppendLine();
@@ -118,8 +135,13 @@ namespace MinistryOfPower.EditorTools
                 .Append(" dealBrief=").Append(dealBrief != null).AppendLine();
             sb.Append("legacyMandateRail=").Append(mandateRail != null)
                 .Append(" legacyBudgetRail=").Append(budgetRail != null).AppendLine();
+            sb.Append("meshChart=").Append(dispatchChart != null)
+                .Append(" dispatchActive=").Append(dispatchChart != null && dispatchChart.isActiveAndEnabled)
+                .AppendLine();
+            sb.Append("secondsPerDay1x=").Append(GameClock.SecondsPerDay1x.ToString("0")).AppendLine();
 
             bool stackOk = false;
+            bool narrowOk = false;
             if (date != null && pause != null)
             {
                 float dateY = date.rectTransform.anchorMin.y;
@@ -132,16 +154,66 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("tickSample=").Append(tick != null ? tick.text : "").AppendLine();
             }
 
+            if (timeBar != null)
+            {
+                float span = timeBar.anchorMax.x - timeBar.anchorMin.x;
+                narrowOk = timeBar.anchorMin.x >= 0.65f && span <= 0.35f;
+                sb.Append("timeBarMinX=").Append(timeBar.anchorMin.x.ToString("0.000"))
+                    .Append(" timeBarSpan=").Append(span.ToString("0.000"))
+                    .Append(" timeClusterNarrow=").Append(narrowOk).AppendLine();
+            }
+
+            if (pause != null && s1 != null)
+            {
+                float btnW = pause.anchorMax.x - pause.anchorMin.x;
+                sb.Append("pauseBtnWidth=").Append(btnW.ToString("0.000"))
+                    .Append(" pauseNarrow=").Append(btnW <= 0.08f).AppendLine();
+                narrowOk = narrowOk && btnW <= 0.08f;
+            }
+
+            // Exclusive menus: Construction open, then Reports flyout → Construction closes.
+            hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
+            bool constructionOpen = side != null && side.activeInHierarchy;
+            // Simulate Reports toggle by opening Budget (reports family) after Construction via ForceOpen
+            // Exclusive: opening Reports flyout path — ForceOpen Budget should keep only reports surface.
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Budget);
             bool flyActive = flyout != null && flyout.activeInHierarchy;
-            sb.Append("reportsOpenOnBudget=").Append(flyActive).AppendLine();
+            bool budgetPanel = side != null && side.activeInHierarchy
+                               && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Budget;
+            sb.Append("reportsOpenOnBudget=").Append(flyActive)
+                .Append(" budgetPanel=").Append(budgetPanel).AppendLine();
+
+            // Re-open Construction: reports flyout must close (exclusive).
+            hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
+            bool flyClosedOnConstruction = flyout == null || !flyout.activeInHierarchy;
+            bool constructionAgain = side != null && side.activeInHierarchy;
+            sb.Append("constructionOpen=").Append(constructionOpen)
+                .Append(" flyClosedOnConstruction=").Append(flyClosedOnConstruction)
+                .Append(" constructionAgain=").Append(constructionAgain).AppendLine();
+
+            bool exclusiveOk = flyActive && budgetPanel && flyClosedOnConstruction && constructionAgain;
+
+            // Chart live data: ensure dispatch strip rendered with session curves.
+            bool chartLive = false;
+            int curveLen = session?.DayDemandCurve != null ? session.DayDemandCurve.Length : 0;
+            sb.Append("dayCurveLen=").Append(curveLen).AppendLine();
+            if (dispatchChart != null && session != null)
+            {
+                var strip = chrome.GetComponentInChildren<SupplyDemandStrip>(true);
+                strip?.Render(session);
+                chartLive = dispatchChart.isActiveAndEnabled && curveLen >= 24;
+            }
+
+            sb.Append("chartLive=").Append(chartLive).AppendLine();
+
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
 
             bool ok = date != null && tick != null && pause != null && s1 != null
                       && reports != null && flyout != null && lobbyInfo != null
                       && filterToggle != null && dealBrief != null
-                      && stackOk && mandateRail == null && budgetRail == null
-                      && flyActive;
+                      && stackOk && narrowOk && exclusiveOk && chartLive
+                      && mandateRail == null && budgetRail == null
+                      && Mathf.Approximately(GameClock.SecondsPerDay1x, 168f);
             sb.AppendLine(ok ? "HUD_LAYOUT_OK=True" : "HUD_LAYOUT_OK=False");
             return sb.ToString();
         }

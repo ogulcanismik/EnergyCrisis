@@ -1,16 +1,23 @@
 using UnityEngine;
 using UnityEngine.UI;
 using MinistryOfPower.Simulation;
+using MinistryOfPower.UI.Charts;
 
 namespace MinistryOfPower.UI
 {
     /// <summary>24h demand/supply curve with playhead for the bottom dispatch panel.</summary>
     public sealed class SupplyDemandStrip : MonoBehaviour
     {
-        private Image[] _demandBars;
-        private Image[] _supplyBars;
+        private UguiMeshChart _chart;
         private RectTransform _playhead;
         private Text _caption;
+        private readonly float[] _demand = new float[24];
+        private readonly float[] _supply = new float[24];
+        private readonly string[] _hours =
+        {
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
+            "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"
+        };
 
         public static SupplyDemandStrip Create(Transform parent, Vector2 amin, Vector2 amax)
         {
@@ -22,45 +29,55 @@ namespace MinistryOfPower.UI
 
         private void Build(Transform parent)
         {
-            _caption = UiFactory.Label(parent, "Cap", UiFactory.Hex("C4A35A"), 12, FontStyle.Bold,
-                new Vector2(0.01f, 0.86f), new Vector2(0.99f, 0.99f));
+            _caption = UiFactory.Label(parent, "Cap", UiFactory.Hex("C4A35A"), 11, FontStyle.Bold,
+                new Vector2(0.01f, 0.88f), new Vector2(0.99f, 0.99f));
             _caption.text = "24h load (amber) / supply (teal)";
-            _demandBars = new Image[24];
-            _supplyBars = new Image[24];
-            for (int i = 0; i < 24; i++)
-            {
-                float x0 = 0.01f + i / 24f * 0.98f;
-                float x1 = 0.01f + (i + 1) / 24f * 0.98f;
-                _demandBars[i] = UiFactory.Panel(parent, "D" + i, new Vector2(x0, 0.06f), new Vector2(x1 - 0.002f, 0.42f), UiFactory.Hex("8B6914"));
-                _supplyBars[i] = UiFactory.Panel(parent, "S" + i, new Vector2(x0, 0.44f), new Vector2(x1 - 0.002f, 0.82f), UiFactory.Hex("2F6B5A"));
-            }
 
-            var ph = UiFactory.Panel(parent, "Playhead", new Vector2(0.01f, 0.04f), new Vector2(0.02f, 0.84f), UiFactory.Hex("E7DCC8"));
+            _chart = UguiMeshChart.Create(parent, "DispatchChart",
+                new Vector2(0.01f, 0.02f), new Vector2(0.99f, 0.87f));
+            _chart.Configure("24h load / supply", v => DisplayUnits.Capacity(v), autoY: true);
+
+            var ph = UiFactory.Panel(parent, "Playhead", new Vector2(0.18f, 0.08f), new Vector2(0.188f, 0.82f),
+                UiFactory.Hex("E7DCC8"));
             _playhead = ph.rectTransform;
+            ph.raycastTarget = false;
         }
 
         public void Render(GameSession session)
         {
-            if (session?.DayDemandCurve == null || _demandBars == null) return;
-            float max = 1f;
-            for (int i = 0; i < 24; i++)
-            {
-                max = Mathf.Max(max, session.DayDemandCurve[i], session.DaySupplyCurve[i]);
-            }
+            if (session?.DayDemandCurve == null || _chart == null) return;
 
             for (int i = 0; i < 24; i++)
             {
-                float dh = Mathf.Clamp01(session.DayDemandCurve[i] / max) * 0.34f + 0.06f;
-                float sh = Mathf.Clamp01(session.DaySupplyCurve[i] / max) * 0.34f + 0.06f;
-                SetBar(_demandBars[i], 0.06f, dh);
-                SetBar(_supplyBars[i], 0.44f, 0.44f + sh);
+                _demand[i] = session.DayDemandCurve[i];
+                _supply[i] = session.DaySupplyCurve[i];
             }
+
+            _chart.Configure("24h load / supply", v => DisplayUnits.Capacity(v), autoY: true);
+            _chart.SetSeries(_hours,
+                new UguiMeshChart.Series
+                {
+                    Name = "Load",
+                    Color = UiFactory.Hex("C4A35A"),
+                    Kind = UguiMeshChart.SeriesKind.Area,
+                    Values = _demand
+                },
+                new UguiMeshChart.Series
+                {
+                    Name = "Supply",
+                    Color = UiFactory.Hex("3FA88A"),
+                    Kind = UguiMeshChart.SeriesKind.Line,
+                    Values = _supply
+                });
 
             float hour = session.Clock.DayFraction * 24f;
             float t = Mathf.Clamp01(session.Clock.DayFraction);
-            float x = 0.01f + t * 0.98f;
-            _playhead.anchorMin = new Vector2(x, 0.04f);
-            _playhead.anchorMax = new Vector2(Mathf.Min(x + 0.008f, 0.99f), 0.84f);
+            // Playhead parented to DayStrip; chart occupies 0.01–0.99 x and 0.02–0.87 y
+            float plotL = 0.01f + (0.99f - 0.01f) * 0.18f;
+            float plotR = 0.01f + (0.99f - 0.01f) * 0.98f;
+            float x = Mathf.Lerp(plotL, plotR, t);
+            _playhead.anchorMin = new Vector2(x, 0.08f);
+            _playhead.anchorMax = new Vector2(Mathf.Min(x + 0.006f, 0.99f), 0.82f);
 
             float margin = session.LastReport.SupplyMw - session.LastReport.DemandMw;
             string peak = IsPeakHour(hour) ? "PEAK" : "off-peak";
@@ -74,17 +91,6 @@ namespace MinistryOfPower.UI
         private static bool IsPeakHour(float hour)
         {
             return (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
-        }
-
-        private static void SetBar(Image img, float yMin, float yMax)
-        {
-            var rt = img.rectTransform;
-            Vector2 min = rt.anchorMin;
-            Vector2 max = rt.anchorMax;
-            min.y = yMin;
-            max.y = yMax;
-            rt.anchorMin = min;
-            rt.anchorMax = max;
         }
     }
 }
