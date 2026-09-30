@@ -286,17 +286,20 @@ namespace MinistryOfPower.Runtime
             if (startingScenario != null && (scenarioId == startingScenario.Id || scenarioId == "usa_like"))
             {
                 var fromAsset = startingScenario.ToConfig();
+                var assetBuilds = startingScenario.ToBuildConfigs();
                 if (fromAsset.Id == scenarioId || scenarioId == "usa_like")
                 {
                     config = MergeScenarioParity(config, fromAsset);
-                    builds = CatalogMerge.Merge(startingScenario.ToBuildConfigs(), builds);
+                    // D1: never replace 10-build factory catalog with a partial SO list.
+                    builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
                 }
             }
 
             if (alternateScenario != null && scenarioId == alternateScenario.Id)
             {
                 config = MergeScenarioParity(config, alternateScenario.ToConfig());
-                builds = CatalogMerge.Merge(alternateScenario.ToBuildConfigs(), builds);
+                var assetBuilds = alternateScenario.ToBuildConfigs();
+                builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
             }
 
             if (builds == null || builds.Count < 5)
