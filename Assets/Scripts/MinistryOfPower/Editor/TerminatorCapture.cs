@@ -5,11 +5,12 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using MinistryOfPower.Runtime;
 using MinistryOfPower.Simulation;
+using MinistryOfPower.UI;
 using MinistryOfPower.UI.Map;
 
 namespace MinistryOfPower.EditorTools
 {
-    /// <summary>Play-mode captures of the map day/night terminator at dawn / noon / night.</summary>
+    /// <summary>Play-mode captures of the map day/night terminator at dawn / noon / dusk / night.</summary>
     public static class TerminatorCapture
     {
         private const string ArmKey = "MoP.TerminatorCaptureArmed";
@@ -99,13 +100,26 @@ namespace MinistryOfPower.EditorTools
             terminator?.EnsureOverlay();
             terminator?.ApplyClock(c);
 
-            // Let LateUpdate + render settle.
+            var hud = Object.FindFirstObjectByType<ParadoxChromeHud>();
+            hud?.RefreshTimeChrome();
+
+            // Settle LateUpdate + render.
             yield return null;
             yield return new WaitForEndOfFrame();
 
             string path = Path.Combine(TerminatorCapture.OutDir, fileName);
-            ScreenCapture.CaptureScreenshot(path);
-            yield return new WaitForEndOfFrame();
+            Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+            if (shot != null)
+            {
+                File.WriteAllBytes(path, shot.EncodeToPNG());
+                Object.Destroy(shot);
+            }
+            else
+            {
+                ScreenCapture.CaptureScreenshot(path);
+                yield return new WaitForEndOfFrame();
+            }
+
             Debug.Log("Captured " + path + " @ DayFraction=" + dayFraction.ToString("0.00")
                       + " (" + c.FormatTimeOfDay() + ")");
         }
