@@ -39,12 +39,21 @@ namespace MinistryOfPower.UI
         private Text _panelBody;
         private Text _logText;
         private Text _lobbyText;
+        private Text _lobbyDetailText;
         private Text _cabinetSummaryText;
         private Text _seasonBannerText;
         private Text _tipText;
+        private Text _reportsToggleLabel;
+        private Text _filterToggleLabel;
+        private Text _lobbyToggleLabel;
+        private Text _dealBriefToggleLabel;
         private GameObject _tipBanner;
         private float _tipTimer;
         private GameObject _leftPanel;
+        private GameObject _reportsFlyout;
+        private GameObject _lobbyDetailHost;
+        private GameObject _filterToggleGo;
+        private GameObject _dealBriefToggleGo;
         private GameObject _rightDrawer;
         private GameObject _eventModal;
         private Text _eventTitle;
@@ -84,6 +93,10 @@ namespace MinistryOfPower.UI
         private readonly Dictionary<string, GameObject> _buildOrderBtns = new Dictionary<string, GameObject>(8);
         private MenuId _openMenu = MenuId.None;
         private BuildFilter _buildFilter = BuildFilter.All;
+        private bool _reportsOpen;
+        private bool _buildFiltersOpen;
+        private bool _lobbyDetailOpen;
+        private bool _dealBriefOpen;
         private Season? _lastSeason;
         private float _seasonBannerTimer;
         private RegionId? _openRegion;
@@ -171,11 +184,7 @@ namespace MinistryOfPower.UI
             GameSession s = _session?.Invoke();
             if (s?.Clock == null || _dateTimeText == null) return;
 
-            float hour = s.Clock.DayFraction * 24f;
-            bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
-            _dateTimeText.text = $"{s.Clock.FormatDate()}  {s.Clock.FormatTimeOfDay()}  ·  {s.Clock.CurrentSeason}";
-            _tickText.text = peak ? "PEAK" : "OFF-PEAK";
-            _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+            ApplyTimeCluster(s);
             _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
             _strip?.Render(s);
         }
@@ -227,6 +236,7 @@ namespace MinistryOfPower.UI
         {
             EnsureUi();
             _openMenu = id;
+            if (IsReportsMenu(id)) _reportsOpen = true;
             Render();
         }
 
@@ -310,11 +320,7 @@ namespace MinistryOfPower.UI
             if (s?.Clock == null) return;
 
             SeatMeters m = s.Meters;
-            float hour = s.Clock.DayFraction * 24f;
-            bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
-            _dateTimeText.text = $"{s.Clock.FormatDate()}  {s.Clock.FormatTimeOfDay()}  ·  {s.Clock.CurrentSeason}";
-            _tickText.text = peak ? "PEAK" : "OFF-PEAK";
-            _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+            ApplyTimeCluster(s);
 
             _treasuryText.text = "Treasury  " + DisplayUnits.Money(s.Budget);
             int budgetKey = (int)(s.Budget * 10f) ^ (s.Difficulty != null ? (int)s.Difficulty.Id : 0);
@@ -393,6 +399,19 @@ namespace MinistryOfPower.UI
             }
         }
 
+        private void ApplyTimeCluster(GameSession s)
+        {
+            float hour = s.Clock.DayFraction * 24f;
+            bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
+            bool day = hour >= 6f && hour < 20f;
+            _dateTimeText.text =
+                s.Clock.FormatDate() + "  " + s.Clock.FormatTimeOfDay() +
+                "  ·  " + s.Clock.CurrentSeason +
+                "  ·  " + (day ? "DAY" : "NIGHT");
+            _tickText.text = peak ? "PEAK" : "OFF-PEAK";
+            _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+        }
+
         private static string MapSpeedLabel(GameSpeed speed)
         {
             switch (speed)
@@ -412,15 +431,24 @@ namespace MinistryOfPower.UI
             CabinetState c = s.Cabinet;
             float lobby = s.FossilLobby01 * 100f;
             _lobbyText.text =
-                "LOBBY PRESSURE\n" +
-                "Fossil lobby   " + Bar(lobby) + "  " + DisplayUnits.LobbyPts(lobby) + "\n" +
-                "Climate / green " + Bar(c.ClimateMandatePressure) + "  " + DisplayUnits.LobbyPts(c.ClimateMandatePressure) + "\n" +
-                "Industry       " + Bar(c.IndustryPressure) + "  " + DisplayUnits.LobbyPts(c.IndustryPressure) + "\n" +
-                "Bills mandate  " + Bar(c.AffordabilityMandate) + "  " + DisplayUnits.LobbyPts(c.AffordabilityMandate) + "\n\n" +
-                "Fossil lobby raises retire cost & bruises clean builds.\n" +
-                "Climate pressure rises when transition stalls.\n" +
-                "Industry wants firm MW and cheap fuel.\n" +
-                "Lobby meters are points (0–100), not money.";
+                "LOBBY\n" +
+                "Fossil  " + Bar(lobby) + "  " + DisplayUnits.LobbyPts(lobby) + "\n" +
+                "Climate " + Bar(c.ClimateMandatePressure) + "  " + DisplayUnits.LobbyPts(c.ClimateMandatePressure) + "\n" +
+                "Indust. " + Bar(c.IndustryPressure) + "  " + DisplayUnits.LobbyPts(c.IndustryPressure) + "\n" +
+                "Bills   " + Bar(c.AffordabilityMandate) + "  " + DisplayUnits.LobbyPts(c.AffordabilityMandate);
+
+            if (_lobbyDetailText != null)
+            {
+                _lobbyDetailText.text =
+                    "Fossil lobby raises retire cost & bruises clean builds.\n" +
+                    "Climate pressure rises when transition stalls.\n" +
+                    "Industry wants firm MW and cheap fuel.\n" +
+                    "Lobby meters are points (0–100), not money.";
+            }
+
+            if (_lobbyDetailHost != null) _lobbyDetailHost.SetActive(_lobbyDetailOpen);
+            if (_lobbyToggleLabel != null)
+                _lobbyToggleLabel.text = _lobbyDetailOpen ? "Lobby info ▴" : "Lobby info ▾";
 
             if (_cabinetSummaryText != null)
             {
@@ -495,11 +523,21 @@ namespace MinistryOfPower.UI
             _leftPanel.SetActive(leftOpen);
 
             if (_buildActions != null) _buildActions.SetActive(_openMenu == MenuId.Construction);
-            if (_buildFilterBar != null) _buildFilterBar.SetActive(_openMenu == MenuId.Construction);
+            if (_buildFilterBar != null)
+                _buildFilterBar.SetActive(_openMenu == MenuId.Construction && _buildFiltersOpen);
+            if (_filterToggleGo != null) _filterToggleGo.SetActive(_openMenu == MenuId.Construction);
+            if (_filterToggleLabel != null)
+                _filterToggleLabel.text = _buildFiltersOpen ? "Filters ▴" : "Filters ▾";
+
             if (_dealActions != null) _dealActions.SetActive(_openMenu == MenuId.Deals);
+            if (_dealBriefToggleGo != null) _dealBriefToggleGo.SetActive(_openMenu == MenuId.Deals);
+            if (_dealBriefToggleLabel != null)
+                _dealBriefToggleLabel.text = _dealBriefOpen ? "Deal briefing ▴" : "Deal briefing ▾";
             if (_policyActions != null) _policyActions.SetActive(_openMenu == MenuId.Policy);
             if (_cabinetActions != null) _cabinetActions.SetActive(true); // always on right drawer
             if (_pauseActions != null) _pauseActions.SetActive(_openMenu == MenuId.Pause);
+
+            SyncReportsFlyout();
 
             // Content texts: left panel for most menus; Cabinet uses same fields for smoke.
             switch (_openMenu)
@@ -518,7 +556,9 @@ namespace MinistryOfPower.UI
                     break;
                 case MenuId.Deals:
                     _panelTitle.text = "INVESTMENT / DEALS";
-                    _panelBody.text = BuildDealsText(s);
+                    _panelBody.text = _dealBriefOpen
+                        ? BuildDealsText(s)
+                        : "Infrastructure investment & procurement.\nOpen Deal briefing for costs & buffers.";
                     break;
                 case MenuId.Policy:
                     _panelTitle.text = "ENERGY POLICY";
@@ -830,7 +870,74 @@ namespace MinistryOfPower.UI
         private void ToggleMenu(MenuId id)
         {
             _openMenu = _openMenu == id ? MenuId.None : id;
+            if (IsReportsMenu(_openMenu)) _reportsOpen = true;
+            else if (_openMenu == MenuId.Construction || _openMenu == MenuId.Policy ||
+                     _openMenu == MenuId.Deals || _openMenu == MenuId.Pause || _openMenu == MenuId.None)
+                _reportsOpen = false;
+            if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
+            if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
             _panelDirtyMenu = (MenuId)(-1); // force side-panel rebuild
+            Render();
+        }
+
+        private static bool IsReportsMenu(MenuId id)
+        {
+            return id == MenuId.EnergyMix || id == MenuId.Resources || id == MenuId.Mandate
+                   || id == MenuId.Budget || id == MenuId.History;
+        }
+
+        private void ToggleReportsFlyout()
+        {
+            _reportsOpen = !_reportsOpen;
+            SyncReportsFlyout();
+        }
+
+        private void SyncReportsFlyout()
+        {
+            bool open = _reportsOpen || IsReportsMenu(_openMenu);
+            if (_reportsFlyout != null) _reportsFlyout.SetActive(open);
+            if (_reportsToggleLabel != null)
+                _reportsToggleLabel.text = open ? "Reports ▴" : "Reports ▾";
+
+            // Keep flyout readable: nudge the left content panel right while Reports is open.
+            if (_leftPanel != null)
+            {
+                var rt = _leftPanel.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    if (open && _leftPanel.activeSelf)
+                    {
+                        rt.anchorMin = new Vector2(0.24f, 0.18f);
+                        rt.anchorMax = new Vector2(0.50f, 0.905f);
+                    }
+                    else
+                    {
+                        rt.anchorMin = new Vector2(0.11f, 0.18f);
+                        rt.anchorMax = new Vector2(0.40f, 0.905f);
+                    }
+                }
+            }
+        }
+
+        private void ToggleBuildFilters()
+        {
+            _buildFiltersOpen = !_buildFiltersOpen;
+            _panelDirtyMenu = (MenuId)(-1);
+            Render();
+        }
+
+        private void ToggleLobbyDetail()
+        {
+            _lobbyDetailOpen = !_lobbyDetailOpen;
+            if (_lobbyDetailHost != null) _lobbyDetailHost.SetActive(_lobbyDetailOpen);
+            if (_lobbyToggleLabel != null)
+                _lobbyToggleLabel.text = _lobbyDetailOpen ? "Lobby info ▴" : "Lobby info ▾";
+        }
+
+        private void ToggleDealBrief()
+        {
+            _dealBriefOpen = !_dealBriefOpen;
+            _panelDirtyMenu = (MenuId)(-1);
             Render();
         }
 
@@ -873,36 +980,36 @@ namespace MinistryOfPower.UI
             Color ink = UiFactory.Hex("1A140F");
             Color panel = UiFactory.Hex("241C14");
 
-            // ——— TOP BAR: date/tick, metrics, one speed cluster ———
+            // ——— TOP BAR: brand + primary macros left; date/hour above speeds right ———
             UiFactory.Panel(canvasGo.transform, "TopBar", new Vector2(0f, 0.905f), new Vector2(1f, 1f), bar);
-            UiFactory.Label(canvasGo.transform, "Brand", accent, 16, FontStyle.Bold,
-                new Vector2(0.008f, 0.955f), new Vector2(0.16f, 0.995f)).text = "MINISTRY OF POWER";
+            UiFactory.Label(canvasGo.transform, "Brand", accent, 15, FontStyle.Bold,
+                new Vector2(0.008f, 0.955f), new Vector2(0.15f, 0.995f)).text = "MINISTRY OF POWER";
 
-            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 14, FontStyle.Bold,
-                new Vector2(0.16f, 0.955f), new Vector2(0.40f, 0.995f));
-            _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 12, FontStyle.Bold,
-                new Vector2(0.40f, 0.955f), new Vector2(0.47f, 0.995f), TextAnchor.MiddleCenter);
             _treasuryText = UiFactory.Label(canvasGo.transform, "Treasury", paper, 13, FontStyle.Bold,
-                new Vector2(0.16f, 0.91f), new Vector2(0.30f, 0.955f));
+                new Vector2(0.008f, 0.91f), new Vector2(0.17f, 0.955f));
             _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, 13, FontStyle.Bold,
-                new Vector2(0.30f, 0.91f), new Vector2(0.40f, 0.955f));
+                new Vector2(0.17f, 0.91f), new Vector2(0.29f, 0.955f));
             _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
-                new Vector2(0.40f, 0.91f), new Vector2(0.56f, 0.955f));
+                new Vector2(0.29f, 0.91f), new Vector2(0.48f, 0.955f));
 
-            // Speed: Pause / 1x / 2x / 5x / +Day  (top-right only)
-            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(0.56f, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
-            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 13, FontStyle.Bold,
-                new Vector2(0.57f, 0.955f), new Vector2(0.66f, 0.995f), TextAnchor.MiddleCenter);
-            UiFactory.Button(canvasGo.transform, "P", "❚❚", new Vector2(0.66f, 0.915f), new Vector2(0.72f, 0.99f),
-                () => _onPause?.Invoke(), accent, ink, 12, "Pause");
-            UiFactory.Button(canvasGo.transform, "S1", "1x", new Vector2(0.72f, 0.915f), new Vector2(0.78f, 0.99f),
-                () => _onNormal?.Invoke(), accent, ink, 12, "1× · ~2.8 min/day");
-            UiFactory.Button(canvasGo.transform, "S2", "2x", new Vector2(0.78f, 0.915f), new Vector2(0.84f, 0.99f),
-                () => _onFast?.Invoke(), accent, ink, 12, "2× · ~84s/day");
-            UiFactory.Button(canvasGo.transform, "S5", "5x", new Vector2(0.84f, 0.915f), new Vector2(0.90f, 0.99f),
-                () => _onVeryFast?.Invoke(), accent, ink, 12, "5× · ~34s/day");
-            UiFactory.Button(canvasGo.transform, "D1", "Skip", new Vector2(0.90f, 0.915f), new Vector2(0.99f, 0.99f),
-                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 12, "Skip +1 day (not a speed)");
+            // Time cluster: date + hour + DAY/NIGHT + peak on top; Pause/1x/2x/5x/Skip below
+            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(0.48f, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
+            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 12, FontStyle.Bold,
+                new Vector2(0.49f, 0.955f), new Vector2(0.82f, 0.995f), TextAnchor.MiddleLeft);
+            _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 11, FontStyle.Bold,
+                new Vector2(0.82f, 0.955f), new Vector2(0.92f, 0.995f), TextAnchor.MiddleCenter);
+            _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 11, FontStyle.Bold,
+                new Vector2(0.92f, 0.955f), new Vector2(0.995f, 0.995f), TextAnchor.MiddleCenter);
+            UiFactory.Button(canvasGo.transform, "P", "❚❚", new Vector2(0.49f, 0.908f), new Vector2(0.58f, 0.952f),
+                () => _onPause?.Invoke(), accent, ink, 11, "Pause");
+            UiFactory.Button(canvasGo.transform, "S1", "1x", new Vector2(0.58f, 0.908f), new Vector2(0.67f, 0.952f),
+                () => _onNormal?.Invoke(), accent, ink, 11, "1× · ~2.8 min/day");
+            UiFactory.Button(canvasGo.transform, "S2", "2x", new Vector2(0.67f, 0.908f), new Vector2(0.76f, 0.952f),
+                () => _onFast?.Invoke(), accent, ink, 11, "2× · ~84s/day");
+            UiFactory.Button(canvasGo.transform, "S5", "5x", new Vector2(0.76f, 0.908f), new Vector2(0.85f, 0.952f),
+                () => _onVeryFast?.Invoke(), accent, ink, 11, "5× · ~34s/day");
+            UiFactory.Button(canvasGo.transform, "D1", "Skip", new Vector2(0.85f, 0.908f), new Vector2(0.995f, 0.952f),
+                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 11, "Skip +1 day (not a speed)");
 
             var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;
@@ -916,28 +1023,54 @@ namespace MinistryOfPower.UI
                 new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), TextAnchor.MiddleCenter);
             _tipBanner.SetActive(false);
 
-            // ——— LEFT RAIL: construction / policy / investment ———
+            // ——— LEFT RAIL: primary menus; secondary under Reports submenu ———
             UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, 0.18f), new Vector2(0.11f, 0.905f), bar);
             float ly = 0.88f;
             MenuBtn(canvasGo.transform, "Construction", MenuId.Construction, ref ly, "Queue, catalog, projections");
             MenuBtn(canvasGo.transform, "Policy", MenuId.Policy, ref ly, "Subsidies, freezes, reserves");
             MenuBtn(canvasGo.transform, "Investment", MenuId.Deals, ref ly, "Imports & private reserve");
-            MenuBtn(canvasGo.transform, "Energy Mix", MenuId.EnergyMix, ref ly, "Live plant portfolio");
-            MenuBtn(canvasGo.transform, "Resources", MenuId.Resources, ref ly, "Fuel stocks + market");
-            MenuBtn(canvasGo.transform, "Mandate", MenuId.Mandate, ref ly, "Victory tracker");
-            MenuBtn(canvasGo.transform, "Budget", MenuId.Budget, ref ly, "Quarter & YTD ledger");
-            MenuBtn(canvasGo.transform, "History", MenuId.History, ref ly, "Past event cards");
+            var reportsBtn = UiFactory.Button(canvasGo.transform, "M_Reports", "Reports ▾",
+                new Vector2(0.01f, ly - 0.055f), new Vector2(0.105f, ly),
+                ToggleReportsFlyout, UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11,
+                "Budget, history, mandate, mix, resources");
+            _reportsToggleLabel = reportsBtn.GetComponentInChildren<Text>();
+            ly -= 0.065f;
             MenuBtn(canvasGo.transform, "Pause", MenuId.Pause, ref ly, "Save / load / F5");
+
+            var reportsFly = UiFactory.Panel(canvasGo.transform, "ReportsFlyout",
+                new Vector2(0.11f, 0.48f), new Vector2(0.24f, 0.88f), UiFactory.Hex("2B2118"));
+            _reportsFlyout = reportsFly.gameObject;
+            float ry = 0.92f;
+            FlyoutMenuBtn(reportsFly.transform, "Energy Mix", MenuId.EnergyMix, ref ry, "Live plant portfolio");
+            FlyoutMenuBtn(reportsFly.transform, "Resources", MenuId.Resources, ref ry, "Fuel stocks + market");
+            FlyoutMenuBtn(reportsFly.transform, "Mandate", MenuId.Mandate, ref ry, "Victory tracker");
+            FlyoutMenuBtn(reportsFly.transform, "Budget", MenuId.Budget, ref ry, "Quarter & YTD ledger");
+            FlyoutMenuBtn(reportsFly.transform, "History", MenuId.History, ref ry, "Past event cards");
+            _reportsFlyout.SetActive(false);
 
             // Left content panel
             var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(0.11f, 0.18f), new Vector2(0.40f, 0.905f), panel);
             _leftPanel = side.gameObject;
             _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, 18, FontStyle.Bold,
-                new Vector2(0.04f, 0.9f), new Vector2(0.88f, 0.98f));
+                new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
             _panelBody = UiFactory.Label(side.transform, "PBody", paper, 11, FontStyle.Normal,
                 new Vector2(0.04f, 0.52f), new Vector2(0.96f, 0.9f), TextAnchor.UpperLeft);
 
-            var filterBar = UiFactory.Panel(side.transform, "BuildFilters", new Vector2(0.02f, 0.455f), new Vector2(0.98f, 0.515f), new Color(0, 0, 0, 0.2f));
+            var filterToggle = UiFactory.Button(side.transform, "FilterToggle", "Filters ▾",
+                new Vector2(0.04f, 0.455f), new Vector2(0.36f, 0.51f),
+                ToggleBuildFilters, UiFactory.Hex("3A2E22"), accent, 11, "Catalog filters");
+            _filterToggleGo = filterToggle.gameObject;
+            _filterToggleLabel = filterToggle.GetComponentInChildren<Text>();
+            _filterToggleGo.SetActive(false);
+
+            var dealBriefToggle = UiFactory.Button(side.transform, "DealBriefToggle", "Deal briefing ▾",
+                new Vector2(0.04f, 0.455f), new Vector2(0.55f, 0.51f),
+                ToggleDealBrief, UiFactory.Hex("3A2E22"), accent, 11, "Costs & buffer details");
+            _dealBriefToggleGo = dealBriefToggle.gameObject;
+            _dealBriefToggleLabel = dealBriefToggle.GetComponentInChildren<Text>();
+            _dealBriefToggleGo.SetActive(false);
+
+            var filterBar = UiFactory.Panel(side.transform, "BuildFilters", new Vector2(0.38f, 0.455f), new Vector2(0.98f, 0.515f), new Color(0, 0, 0, 0.2f));
             _buildFilterBar = filterBar.gameObject;
             float fx = 0.02f;
             AddBuildFilterBtn(filterBar.transform, "All", BuildFilter.All, ref fx);
@@ -1045,15 +1178,28 @@ namespace MinistryOfPower.UI
             _pauseActions.SetActive(false);
             _leftPanel.SetActive(false);
 
-            // ——— RIGHT DRAWER: Cabinet + Lobby ———
+            // ——— RIGHT DRAWER: Cabinet + Lobby (deep lobby copy behind submenu) ———
             var right = UiFactory.Panel(canvasGo.transform, "RightDrawer", new Vector2(0.78f, 0.18f), new Vector2(1f, 0.905f), panel);
             _rightDrawer = right.gameObject;
             UiFactory.Button(right.transform, "CabOpen", "Cabinet detail", new Vector2(0.08f, 0.94f), new Vector2(0.92f, 0.99f),
                 () => ToggleMenu(MenuId.Cabinet), UiFactory.Hex("3A2E22"), accent, 11, "Open cabinet briefing");
             _lobbyText = UiFactory.Label(right.transform, "Lobby", paper, 11, FontStyle.Normal,
-                new Vector2(0.05f, 0.52f), new Vector2(0.95f, 0.93f), TextAnchor.UpperLeft);
+                new Vector2(0.05f, 0.72f), new Vector2(0.95f, 0.93f), TextAnchor.UpperLeft);
+
+            var lobbyToggle = UiFactory.Button(right.transform, "LobbyInfo", "Lobby info ▾",
+                new Vector2(0.08f, 0.66f), new Vector2(0.92f, 0.71f),
+                ToggleLobbyDetail, UiFactory.Hex("3A2E22"), accent, 10, "How lobby meters affect options");
+            _lobbyToggleLabel = lobbyToggle.GetComponentInChildren<Text>();
+
+            var lobbyDetail = UiFactory.Panel(right.transform, "LobbyDetail",
+                new Vector2(0.04f, 0.50f), new Vector2(0.96f, 0.655f), UiFactory.Hex("1A1510"));
+            _lobbyDetailHost = lobbyDetail.gameObject;
+            _lobbyDetailText = UiFactory.Label(lobbyDetail.transform, "LobbyD", paper, 10, FontStyle.Normal,
+                new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f), TextAnchor.UpperLeft);
+            _lobbyDetailHost.SetActive(false);
+
             _cabinetSummaryText = UiFactory.Label(right.transform, "CabSum", accent, 12, FontStyle.Bold,
-                new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.51f), TextAnchor.UpperLeft);
+                new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.49f), TextAnchor.UpperLeft);
 
             var cabHost = UiFactory.Panel(right.transform, "CabinetActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
             _cabinetActions = cabHost.gameObject;
@@ -1197,9 +1343,9 @@ namespace MinistryOfPower.UI
             UiFactory.Label(help.transform, "HB", paper, 13, FontStyle.Normal,
                 new Vector2(0.06f, 0.2f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft).text =
                 "Paradox desk shell — one HUD, no stacked leftovers.\n\n" +
-                "· Top: date/tick, treasury, confidence, grid margin, Pause/1x/2x/5x.\n" +
-                "· Left: Construction / Policy / Investment.\n" +
-                "· Right: Lobby pressure meters + Cabinet levers.\n" +
+                "· Top: treasury / conf / margin · date+hour above Pause/1x/2x/5x.\n" +
+                "· Left: Construction / Policy / Investment · Reports submenu · Pause.\n" +
+                "· Right: Lobby meters (+ info submenu) · Cabinet levers.\n" +
                 "· Bottom: 24h load/supply curve + emergency import/reserve.\n" +
                 "· Map center: USA grey-box regions, plants, transmission lines.\n" +
                 "· Left-click regions/plants · hold right-mouse to pan · scroll to zoom.\n" +
@@ -1230,6 +1376,15 @@ namespace MinistryOfPower.UI
                 new Vector2(0.01f, y - h), new Vector2(0.105f, y),
                 () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11, tip);
             y -= h + 0.01f;
+        }
+
+        private void FlyoutMenuBtn(Transform parent, string label, MenuId id, ref float y, string tip = null)
+        {
+            float h = 0.14f;
+            UiFactory.Button(parent, "RF_" + label, label,
+                new Vector2(0.06f, y - h), new Vector2(0.94f, y),
+                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11, tip);
+            y -= h + 0.02f;
         }
     }
 }
