@@ -81,6 +81,7 @@ namespace MinistryOfPower.Simulation
         public event Action<string> LogEmitted;
         public event Action GameOver;
         public event Action<string> TipRaised;
+        public event Action<YearReport> YearEnded;
 
         private readonly List<PlantInstance> _completedScratch = new List<PlantInstance>(4);
         private readonly List<BuildDefinitionConfig> _buildCatalog = new List<BuildDefinitionConfig>();
@@ -113,6 +114,7 @@ namespace MinistryOfPower.Simulation
         public float PrivateReserveQuarterlyCost { get; private set; }
         public float EmergencyImportMw { get; private set; }
         public int EmergencyImportDaysRemaining { get; private set; }
+        public YearReport LastYearReport { get; private set; }
         /// <summary>24 buckets of relative demand (0..1+) for HUD strip.</summary>
         public float[] DayDemandCurve { get; private set; } = new float[24];
         /// <summary>24 buckets of relative supply (0..1+) for HUD strip.</summary>
@@ -124,6 +126,14 @@ namespace MinistryOfPower.Simulation
         private float _effectiveLobby;
         private float _quarterlyIncome;
         private int _lastYearForLedger;
+        private float _yearAdeqSum;
+        private float _yearAffSum;
+        private int _yearSamples;
+        private float _yearSpend;
+        private float _yearBudgetAnchor;
+        private string _yearBiggestEvent = "—";
+        private float _yearBiggestSev;
+        private int _yearEventCount;
 
         public void Start(ScenarioConfig scenario, IEnumerable<BuildDefinitionConfig> builds, DifficultyConfig difficulty = null)
         {
@@ -158,6 +168,9 @@ namespace MinistryOfPower.Simulation
             PrivateReserveQuarterlyCost = 0f;
             EmergencyImportMw = 0f;
             EmergencyImportDaysRemaining = 0;
+            LastYearReport = null;
+            ResetYearAccumulator();
+            _yearBudgetAnchor = Budget;
             FillDayCurves(scenario.BaseDemandMw, scenario.BaseDemandMw * 0.95f);
 
             _buildCatalog.Clear();
@@ -215,6 +228,7 @@ namespace MinistryOfPower.Simulation
             }
 
             Budget -= dueNow;
+            NoteSpend(dueNow);
             RegionId site = SelectedRegion;
             Builds.Enqueue(new BuildOrder(
                 Builds.NextOrderId(),
@@ -325,6 +339,7 @@ namespace MinistryOfPower.Simulation
             }
 
             Budget -= cost;
+            NoteSpend(cost);
             EmergencyImportMw = Math.Max(EmergencyImportMw, mw);
             EmergencyImportDaysRemaining = Math.Max(EmergencyImportDaysRemaining, 10);
             ApplyMeterDeltas(4f, -1f, 0f, 1.5f);
@@ -353,6 +368,7 @@ namespace MinistryOfPower.Simulation
             }
 
             Budget -= upfront;
+            NoteSpend(upfront);
             PrivateReserveMw += mw;
             PrivateReserveQuarterlyCost += quarterly;
             ApplyMeterDeltas(3f, 0f, -0.5f, 1f);
@@ -366,6 +382,45 @@ namespace MinistryOfPower.Simulation
             if (AwaitingCrisisDecision)
             {
                 return TryResolveCrisis(choice, out message);
+            }
+
+            if (choice == CrisisChoice.StrategicReserve)
+            {
+                float cost = 14f * Difficulty.BudgetMultiplier;
+                if (Budget < cost)
+                {
+                    message = "Strategic reserve fill needs ~" + cost.ToString("0") + " treasury.";
+                    return false;
+                }
+
+                Budget -= cost;
+                NoteSpend(cost);
+                Resources.Add(FuelKind.Coal, 8f);
+                Resources.Add(FuelKind.Gas, 8f);
+                Resources.Add(FuelKind.Oil, 4f);
+                ApplyMeterDeltas(3f, -1f, 0f, 1f);
+                message = $"Strategic reserve filled (−{cost:0} treasury). Stocks up; adequacy +3.";
+                Cabinet.SyncFromMeters(Meters, _effectiveLobby);
+                EmitLog("CABINET: " + message);
+                return true;
+            }
+
+            if (choice == CrisisChoice.RenewableSubsidy)
+            {
+                float cost = 18f * Difficulty.BudgetMultiplier;
+                if (Budget < cost)
+                {
+                    message = "Renewable subsidy needs ~" + cost.ToString("0") + " treasury.";
+                    return false;
+                }
+
+                Budget -= cost;
+                NoteSpend(cost);
+                ApplyMeterDeltas(0f, 4f, 5f, -2f * Difficulty.LobbyPressureMultiplier);
+                message = $"Renewable subsidy (−{cost:0}). Transition +5, bills +4; lobby bruises confidence.";
+                Cabinet.SyncFromMeters(Meters, _effectiveLobby);
+                EmitLog("CABINET: " + message);
+                return true;
             }
 
             // Proactive policy from Cabinet menu (costs without an active shock card).
@@ -382,6 +437,7 @@ namespace MinistryOfPower.Simulation
                 : CrisisResolver.ApplyPostpone(choice, synthetic, _effectiveLobby);
 
             Budget += outcome.BudgetDelta;
+            if (outcome.BudgetDelta < 0f) NoteSpend(-outcome.BudgetDelta);
             ApplyMeterDeltas(outcome.AdequacyDelta, outcome.AffordabilityDelta, outcome.TransitionDelta, outcome.ConfidenceDelta);
             CrisisResolver.ApplyOutcomeToModifiers(outcome, Modifiers);
 
@@ -433,8 +489,11 @@ namespace MinistryOfPower.Simulation
 
             if (Clock.Year != _lastYearForLedger)
             {
+                FinalizeYearReport(_lastYearForLedger);
                 Ledger.OnNewYear();
                 _lastYearForLedger = Clock.Year;
+                ResetYearAccumulator();
+                _yearBudgetAnchor = Budget;
             }
 
             DayReport report = DayResolver.Resolve(
@@ -456,6 +515,9 @@ namespace MinistryOfPower.Simulation
             FillDayCurves(report.DemandMw, report.SupplyMw);
             Mandate.TickDay(Meters);
             Cabinet.SyncFromMeters(Meters, _effectiveLobby);
+            _yearAdeqSum += Meters.Adequacy;
+            _yearAffSum += Meters.Affordability;
+            _yearSamples++;
             DayResolved?.Invoke(report);
 
             if (Clock.CurrentSeason == Season.Winter)
@@ -528,14 +590,68 @@ namespace MinistryOfPower.Simulation
                 case CrisisChoice.LoadShedIndustry: return "shed industry";
                 case CrisisChoice.LoadShedSuburbs: return "shed suburbs";
                 case CrisisChoice.LoadShedTransit: return "shed transit";
+                case CrisisChoice.StrategicReserve: return "strategic reserve";
+                case CrisisChoice.RenewableSubsidy: return "renewable subsidy";
                 default: return choice.ToString();
             }
+        }
+
+        public void NoteEventForYear(PendingEvent evt)
+        {
+            if (evt == null) return;
+            _yearEventCount++;
+            if (evt.Severity01 >= _yearBiggestSev)
+            {
+                _yearBiggestSev = evt.Severity01;
+                _yearBiggestEvent = string.IsNullOrEmpty(evt.Title) ? "Event" : evt.Title;
+            }
+        }
+
+        private void NoteSpend(float amount)
+        {
+            if (amount > 0f) _yearSpend += amount;
+        }
+
+        private void ResetYearAccumulator()
+        {
+            _yearAdeqSum = 0f;
+            _yearAffSum = 0f;
+            _yearSamples = 0;
+            _yearSpend = 0f;
+            _yearBiggestEvent = "—";
+            _yearBiggestSev = 0f;
+            _yearEventCount = 0;
+        }
+
+        private void FinalizeYearReport(int closedYear)
+        {
+            if (_yearSamples <= 0 && _yearEventCount <= 0) return;
+            float adeq = _yearSamples > 0 ? _yearAdeqSum / _yearSamples : Meters.Adequacy;
+            float aff = _yearSamples > 0 ? _yearAffSum / _yearSamples : Meters.Affordability;
+            float spend = _yearSpend;
+            if (spend < 0.01f && _yearBudgetAnchor > Budget)
+                spend = _yearBudgetAnchor - Budget;
+
+            LastYearReport = new YearReport
+            {
+                Year = closedYear,
+                AdequacyAvg = adeq,
+                AffordAvg = aff,
+                CleanPctEnd = Meters.Transition,
+                Spend = spend,
+                BiggestEventTitle = _yearBiggestEvent,
+                BiggestEventSeverity = _yearBiggestSev,
+                EventCount = _yearEventCount
+            };
+            EmitLog("YEAR REPORT: " + closedYear + " closed.");
+            YearEnded?.Invoke(LastYearReport);
         }
 
         public MinistryOfPower.Runtime.GameSaveData CaptureSave(int slot)
         {
             var data = new MinistryOfPower.Runtime.GameSaveData
             {
+                Version = MinistryOfPower.Runtime.GameSaveData.CurrentVersion,
                 Slot = slot,
                 ScenarioId = Scenario.Id,
                 ScenarioName = Scenario.DisplayName,
@@ -829,6 +945,7 @@ namespace MinistryOfPower.Simulation
         {
             ActiveEvent = evt;
             _daysSinceMajorEvent = 0;
+            NoteEventForYear(evt);
             History.Record(evt, Clock, autoResolveIfInsured && !evt.AwaitingDecision ? "shrugged" : "pending");
             EventRaised?.Invoke(ActiveEvent);
             TipRaised?.Invoke("first_event");

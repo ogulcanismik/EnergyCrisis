@@ -32,7 +32,9 @@ namespace MinistryOfPower.Simulation
         TariffFreeze = 2,
         LoadShedIndustry = 3,
         LoadShedSuburbs = 4,
-        LoadShedTransit = 5
+        LoadShedTransit = 5,
+        StrategicReserve = 6,
+        RenewableSubsidy = 7
     }
 
     public struct CrisisOutcome

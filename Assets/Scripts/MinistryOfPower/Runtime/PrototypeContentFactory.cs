@@ -20,18 +20,18 @@ namespace MinistryOfPower.Runtime
                 StartYear = 2026,
                 Seed = 2026,
                 CampaignYears = 20,
-                StartingBudget = 200f,
-                QuarterlyIncome = 24f,
+                StartingBudget = 210f,
+                QuarterlyIncome = 26f,
                 BaseDemandMw = 1250f,
                 SolarResource = 0.95f,
-                WindResource = 1.1f,
+                WindResource = 1.15f,
                 FossilLobbyStrength = 0.95f,
                 LobbyRetireMultiplier = 1.55f,
                 ImportCapacityMw = 55f,
-                StartingAdequacy = 76f,
-                StartingAffordability = 72f,
+                StartingAdequacy = 78f,
+                StartingAffordability = 74f,
                 StartingTransition = 12f,
-                StartingConfidence = 74f,
+                StartingConfidence = 76f,
                 StartingPlants = new List<PlantSpawnConfig>
                 {
                     Spawn("coal", "Midwest Coal Cluster", FuelKind.Coal, 450f, 0.88f, 35f, 0.05f, RegionId.North),
@@ -54,22 +54,22 @@ namespace MinistryOfPower.Runtime
                 DisplayName = "Sun-Rich Low Budget",
                 Description = "Tight cash, blistering sun, import-leaning. Soft lobby — retire fossils cheaply.",
                 DifferentiationBlurb =
-                    "Thin treasury · Solar CF ~1.55 · Imports fat (180 MW) · Soft retire lobby (×0.55) · Drought/heat/import shocks",
+                    "Thin treasury · Solar CF ~1.55 · Imports fat (180 MW) · Soft retire lobby (×0.55) · Drought/heat/import shocks · Easy still playable years 1–2",
                 StartYear = 2026,
                 Seed = 77,
                 CampaignYears = 20,
-                StartingBudget = 55f,
-                QuarterlyIncome = 8f,
+                StartingBudget = 68f,
+                QuarterlyIncome = 10f,
                 BaseDemandMw = 760f,
                 SolarResource = 1.55f,
                 WindResource = 0.85f,
                 FossilLobbyStrength = 0.28f,
                 LobbyRetireMultiplier = 0.55f,
                 ImportCapacityMw = 180f,
-                StartingAdequacy = 58f,
-                StartingAffordability = 54f,
+                StartingAdequacy = 62f,
+                StartingAffordability = 58f,
                 StartingTransition = 28f,
-                StartingConfidence = 66f,
+                StartingConfidence = 70f,
                 StartingPlants = new List<PlantSpawnConfig>
                 {
                     Spawn("oil", "Imported Oil Units", FuelKind.Oil, 140f, 0.85f, 80f, 1f, RegionId.Coast),
@@ -146,7 +146,13 @@ namespace MinistryOfPower.Runtime
                     "Peak insurance; no fuel."),
                 Build("build_nuclear", "Nuclear Block", FuelKind.Nuclear, 400f, 0.92f, 15f, 0f,
                     BuildPaymentMode.PerQuarter, 40f, 14f, 24, 6f, 5f, 0.08f,
-                    "Long bet (~6y). Uranium upkeep.")
+                    "Long bet (~6y). Uranium upkeep."),
+                Build("build_offshore_wind", "Offshore Wind", FuelKind.Wind, 220f, 0.93f, 6f, 0f,
+                    BuildPaymentMode.PerQuarter, 26f, 10f, 12, 1.5f, 1.8f, 0f,
+                    "High CF coastal wind. Costly, clean, storm-exposed."),
+                Build("build_biomass", "Biomass CHP", FuelKind.Biomass, 140f, 0.9f, 28f, 0f,
+                    BuildPaymentMode.PerQuarter, 16f, 7f, 8, 1f, 2.4f, 0.25f,
+                    "Dispatchable clean-ish heat+power. Feedstock upkeep, no oil link.")
             };
         }
 

@@ -4,24 +4,10 @@
   Auto-relaunch Unity Editor for EnergyCrisis after a crash.
 
 .DESCRIPTION
-  Polls for an interactive Unity Editor process opened on this project
-  (command line contains -projectPath matching EnergyCrisis, and is NOT
-  -batchmode). Does not kill healthy editors. Caps relaunches to avoid loops.
-
-.PARAMETER ProjectPath
-  Absolute path to the Unity project root.
-
-.PARAMETER PollSeconds
-  How often to check for a live Editor (default 20).
-
-.PARAMETER GraceSeconds
-  Extra wait after detecting "down" before relaunch (default 20).
-
-.PARAMETER MaxRelaunchesPerHour
-  Soft cap on relaunches in any rolling 60-minute window (default 5).
-
-.PARAMETER LogPath
-  Log file path (default: Tools\Watchdog\watchdog.log next to this script).
+  Polls for a healthy interactive Unity Editor on this project
+  (command line contains -projectPath matching EnergyCrisis, NOT -batchmode,
+  working set > ~200MB, not stuck on the admin warning dialog).
+  Auto-dismisses the "running as administrator" dialog after relaunch.
 #>
 [CmdletBinding()]
 param(
@@ -39,6 +25,7 @@ if (-not $LogPath) {
 }
 $StopFlag = Join-Path $ScriptDir 'STOP'
 $PidFile = Join-Path $ScriptDir 'watchdog.pid'
+$MinHealthyBytes = 200MB
 
 function Write-Log {
     param([string]$Message, [string]$Level = 'INFO')
@@ -63,56 +50,121 @@ function Resolve-UnityEditor {
         $candidate = "C:\Program Files\Unity\Hub\Editor\$version\Editor\Unity.exe"
         if (Test-Path $candidate) { return $candidate }
     }
-    # Fallback: known probe path
     $fallback = 'C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Unity.exe'
     if (Test-Path $fallback) { return $fallback }
     return $null
 }
 
-function Test-EnergyCrisisEditorRunning {
+function Get-EnergyCrisisEditorProcesses {
     param([string]$Root)
     $normalized = ($Root -replace '/', '\').TrimEnd('\').ToLowerInvariant()
     $needle = 'energycrisis'
-
+    $list = @()
     try {
         $procs = Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" -ErrorAction Stop
     }
     catch {
         Write-Log "Failed to query processes: $_" 'WARN'
-        return $false
+        return $list
     }
 
     foreach ($p in $procs) {
         $cmd = $p.CommandLine
         if (-not $cmd) { continue }
-
-        # Skip batchmode workers / CLI (AssetImportWorker, etc.)
         if ($cmd -match '(?i)(-batchmode|-batchMode)') { continue }
-
-        # Prefer -projectPath / -projectpath containing EnergyCrisis or exact path
         $hasProject =
             ($cmd -match '(?i)-projectpath\s+"?([^"\s]+)"?' -and (
                 ($Matches[1] -replace '/', '\').TrimEnd('\').ToLowerInvariant() -eq $normalized -or
                 ($Matches[1] -replace '/', '\').ToLowerInvariant().Contains($needle)
             )) -or
             ($cmd.ToLowerInvariant().Contains($needle) -and $cmd -match '(?i)-projectpath')
+        if ($hasProject) { $list += $p }
+    }
+    return $list
+}
 
-        if ($hasProject) {
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class MoPWatchdogWin {
+  public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hWnd, EnumWindowsProc callback, IntPtr lParam);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder sb, int maxCount);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int maxCount);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+  public const uint BM_CLICK = 0x00F5;
+}
+"@ -ErrorAction SilentlyContinue
+
+function Dismiss-UnityAdminDialog {
+    param([int[]]$ProcessIds)
+    if (-not $ProcessIds -or $ProcessIds.Count -eq 0) { return $false }
+    $dismissed = $false
+    $targetPids = New-Object 'System.Collections.Generic.HashSet[uint32]'
+    foreach ($id in $ProcessIds) { [void]$targetPids.Add([uint32]$id) }
+
+    $null = [MoPWatchdogWin]::EnumWindows({
+        param($hWnd, $lParam)
+        $procId = [uint32]0
+        [MoPWatchdogWin]::GetWindowThreadProcessId($hWnd, [ref]$procId) | Out-Null
+        if (-not $targetPids.Contains($procId)) { return $true }
+        $title = New-Object System.Text.StringBuilder 512
+        [MoPWatchdogWin]::GetWindowText($hWnd, $title, 512) | Out-Null
+        $t = $title.ToString()
+        if ($t -notmatch '(?i)running as administrator') { return $true }
+
+        $script:adminButtons = @()
+        $null = [MoPWatchdogWin]::EnumChildWindows($hWnd, {
+            param($ch, $lp)
+            $cls = New-Object System.Text.StringBuilder 256
+            [MoPWatchdogWin]::GetClassName($ch, $cls, 256) | Out-Null
+            if ($cls.ToString() -ne 'Button') { return $true }
+            $txt = New-Object System.Text.StringBuilder 256
+            [MoPWatchdogWin]::GetWindowText($ch, $txt, 256) | Out-Null
+            $script:adminButtons += [pscustomobject]@{ H = $ch; Text = $txt.ToString() }
             return $true
+        }, [IntPtr]::Zero)
+
+        $ok = $script:adminButtons | Where-Object { $_.Text -match '(?i)own risk|continue' } | Select-Object -First 1
+        if ($ok) {
+            [MoPWatchdogWin]::SendMessage($ok.H, [MoPWatchdogWin]::BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            $script:dismissedFlag = $true
+            Write-Log "Dismissed admin dialog on PID $procId ($($ok.Text))."
         }
+        return $true
+    }, [IntPtr]::Zero)
+
+    return [bool]$script:dismissedFlag
+}
+
+function Test-EnergyCrisisEditorHealthy {
+    param([string]$Root)
+    $list = @(Get-EnergyCrisisEditorProcesses -Root $Root)
+    if ($list.Count -eq 0) { return $false }
+
+    $pids = @($list | ForEach-Object { [int]$_.ProcessId })
+    [void](Dismiss-UnityAdminDialog -ProcessIds $pids)
+
+    foreach ($p in $list) {
+        $proc = Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue
+        if (-not $proc) { continue }
+        if ($proc.WorkingSet64 -lt $MinHealthyBytes) { continue }
+        if ($proc.MainWindowTitle -match '(?i)^Unity is running as administrator') { continue }
+        return $true
     }
     return $false
 }
 
 function Start-EnergyCrisisEditor {
     param([string]$UnityExe, [string]$Root)
-    # Interactive Editor only — never -batchmode (MCP + UI workflow)
     $args = @('-projectPath', $Root)
     Write-Log "Launching: `"$UnityExe`" $($args -join ' ')"
     Start-Process -FilePath $UnityExe -ArgumentList $args | Out-Null
 }
 
-# --- main ---
 $ProjectPath = [System.IO.Path]::GetFullPath($ProjectPath)
 if (-not (Test-Path $ProjectPath)) {
     Write-Error "Project path not found: $ProjectPath"
@@ -125,7 +177,6 @@ if (-not $UnityExe) {
     exit 1
 }
 
-# Single-instance guard
 if (Test-Path $PidFile) {
     $oldPid = Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($oldPid -and (Get-Process -Id $oldPid -ErrorAction SilentlyContinue)) {
@@ -141,6 +192,7 @@ $version = Get-ProjectVersion -Root $ProjectPath
 
 Write-Log "Watchdog started PID=$PID project=$ProjectPath editor=$UnityExe version=$version"
 Write-Log "Poll=${PollSeconds}s grace=${GraceSeconds}s maxRelaunches/hour=$MaxRelaunchesPerHour"
+Write-Log "Healthy = WS>$MinHealthyBytes and not admin-dialog stuck; auto-dismiss enabled."
 Write-Log "Stop: create file $StopFlag  OR  run Stop-UnityWatchdog.bat"
 
 try {
@@ -150,12 +202,23 @@ try {
             break
         }
 
-        if (Test-EnergyCrisisEditorRunning -Root $ProjectPath) {
+        if (Test-EnergyCrisisEditorHealthy -Root $ProjectPath) {
             Start-Sleep -Seconds $PollSeconds
             continue
         }
 
-        Write-Log 'EnergyCrisis interactive Editor not found — waiting grace period before relaunch.'
+        # Still may have a hung stub — try dismiss before declaring down
+        $stubs = @(Get-EnergyCrisisEditorProcesses -Root $ProjectPath)
+        if ($stubs.Count -gt 0) {
+            [void](Dismiss-UnityAdminDialog -ProcessIds (@($stubs | ForEach-Object { [int]$_.ProcessId })))
+            Start-Sleep -Seconds 5
+            if (Test-EnergyCrisisEditorHealthy -Root $ProjectPath) {
+                Write-Log 'Editor became healthy after admin-dialog dismiss.'
+                continue
+            }
+        }
+
+        Write-Log 'EnergyCrisis interactive Editor not healthy — waiting grace period before relaunch.'
         Start-Sleep -Seconds $GraceSeconds
 
         if (Test-Path $StopFlag) {
@@ -163,12 +226,11 @@ try {
             break
         }
 
-        if (Test-EnergyCrisisEditorRunning -Root $ProjectPath) {
+        if (Test-EnergyCrisisEditorHealthy -Root $ProjectPath) {
             Write-Log 'Editor came back during grace — no relaunch.'
             continue
         }
 
-        # Prune relaunch window
         $cutoff = (Get-Date).AddHours(-1)
         while ($relaunchTimes.Count -gt 0 -and $relaunchTimes[0] -lt $cutoff) {
             $relaunchTimes.RemoveAt(0)
@@ -180,12 +242,29 @@ try {
             continue
         }
 
+        # Kill stuck sub-200MB stubs so relaunch can bind the project
+        foreach ($s in @(Get-EnergyCrisisEditorProcesses -Root $ProjectPath)) {
+            $gp = Get-Process -Id $s.ProcessId -ErrorAction SilentlyContinue
+            if ($gp -and $gp.WorkingSet64 -lt $MinHealthyBytes) {
+                Write-Log "Killing stuck Unity stub PID $($s.ProcessId) (WS=$([math]::Round($gp.WorkingSet64/1MB,1))MB)." 'WARN'
+                Stop-Process -Id $s.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+        }
+        Start-Sleep -Seconds 2
+
         Start-EnergyCrisisEditor -UnityExe $UnityExe -Root $ProjectPath
         $relaunchTimes.Add((Get-Date))
         Write-Log "Relaunch #$(($relaunchTimes.Count)) in current hour window."
 
-        # Give Editor time to appear before next poll
-        Start-Sleep -Seconds ([Math]::Max($PollSeconds, 30))
+        # Dismiss admin dialog during boot window
+        for ($i = 0; $i -lt 12; $i++) {
+            Start-Sleep -Seconds 5
+            $boot = @(Get-EnergyCrisisEditorProcesses -Root $ProjectPath)
+            if ($boot.Count -gt 0) {
+                [void](Dismiss-UnityAdminDialog -ProcessIds (@($boot | ForEach-Object { [int]$_.ProcessId })))
+            }
+            if (Test-EnergyCrisisEditorHealthy -Root $ProjectPath) { break }
+        }
     }
 }
 finally {

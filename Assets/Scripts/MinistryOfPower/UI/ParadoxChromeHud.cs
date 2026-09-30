@@ -63,6 +63,9 @@ namespace MinistryOfPower.UI
         private Text _confirmTitle;
         private Text _confirmBody;
         private Action _confirmYes;
+        private GameObject _yearModal;
+        private Text _yearTitle;
+        private Text _yearBody;
         private SupplyDemandStrip _strip;
         private GameObject _buildActions;
         private GameObject _buildFilterBar;
@@ -168,6 +171,22 @@ namespace MinistryOfPower.UI
         {
             EnsureUi();
             ShowSeasonBanner("QUICKSAVE · slot 1", false);
+        }
+
+        public void ShowYearReport(YearReport report)
+        {
+            EnsureUi();
+            if (_yearModal == null || report == null) return;
+            _yearTitle.text = "YEAR " + report.Year + " REPORT";
+            _yearBody.text = report.FormatModal();
+            _yearModal.SetActive(true);
+            _onPause?.Invoke();
+        }
+
+        public void HideYearReport()
+        {
+            if (_yearModal != null) _yearModal.SetActive(false);
+            _onNormal?.Invoke();
         }
 
         private void OnRegionSelected(RegionId id)
@@ -501,6 +520,8 @@ namespace MinistryOfPower.UI
                 case "build_wind":
                 case "build_hydro":
                 case "build_nuclear":
+                case "build_offshore_wind":
+                case "build_biomass":
                     return filter == BuildFilter.Clean;
                 default:
                     return true;
@@ -624,7 +645,9 @@ namespace MinistryOfPower.UI
                    $"Mandate: {c.ActiveMandate}\n" +
                    $"Tariff freeze: {(c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off")}\n" +
                    $"Emergency fossil: {(c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off")}\n\n" +
-                   "Buttons below. Don't confuse motion with governance.";
+                   "Fill Reserve: stock fuels + adequacy.\n" +
+                   "RE Subsidy: transition + bills; lobby bruise.\n" +
+                   "Don't confuse motion with governance.";
         }
 
         private void ToggleMenu(MenuId id)
@@ -788,20 +811,27 @@ namespace MinistryOfPower.UI
                 btn.gameObject.SetActive(false);
             }
 
-            var buildHost = UiFactory.Panel(side.transform, "BuildActions", new Vector2(0f, 0f), new Vector2(1f, 0.14f), new Color(0, 0, 0, 0));
+            var buildHost = UiFactory.Panel(side.transform, "BuildActions", new Vector2(0f, 0f), new Vector2(1f, 0.2f), new Color(0, 0, 0, 0));
             _buildActions = buildHost.gameObject;
-            string[] ids = { "build_coal", "build_gas", "build_oil", "build_solar", "build_wind", "build_hydro", "build_storage", "build_nuclear" };
-            string[] labels = { "Coal", "Gas", "Oil", "Solar", "Wind", "Hydro", "Storage", "Nuke" };
+            string[] ids =
+            {
+                "build_coal", "build_gas", "build_oil", "build_solar", "build_wind",
+                "build_hydro", "build_storage", "build_nuclear", "build_offshore_wind", "build_biomass"
+            };
+            string[] labels = { "Coal", "Gas", "Oil", "Solar", "Wind", "Hydro", "Storage", "Nuke", "OffWind", "Bio" };
             _buildOrderBtns.Clear();
             for (int i = 0; i < ids.Length; i++)
             {
                 string id = ids[i];
-                float x0 = 0.04f + (i % 4) * 0.24f;
-                float x1 = x0 + 0.22f;
-                float row = i < 4 ? 0.95f : 0.48f;
+                int col = i % 5;
+                int rowIdx = i / 5;
+                float x0 = 0.02f + col * 0.196f;
+                float x1 = x0 + 0.18f;
+                float y1 = 0.95f - rowIdx * 0.48f;
+                float y0 = y1 - 0.42f;
                 var ordBtn = UiFactory.Button(buildHost.transform, "Ord_" + id, labels[i],
-                    new Vector2(x0, row - 0.4f), new Vector2(x1, row),
-                    () => _onBuild?.Invoke(id), UiFactory.Hex("3A2E22"), paper, 11);
+                    new Vector2(x0, y0), new Vector2(x1, y1),
+                    () => _onBuild?.Invoke(id), UiFactory.Hex("3A2E22"), paper, 10);
                 _buildOrderBtns[id] = ordBtn.gameObject;
             }
 
@@ -812,14 +842,20 @@ namespace MinistryOfPower.UI
             UiFactory.Button(dealHost.transform, "DealReserve", "Sign Private Reserve", new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.48f),
                 () => _onPrivateReserve?.Invoke(), UiFactory.Hex("3E5C3A"), paper, 13);
 
-            var cabHost = UiFactory.Panel(side.transform, "CabinetActions", new Vector2(0f, 0f), new Vector2(1f, 0.16f), new Color(0, 0, 0, 0));
+            var cabHost = UiFactory.Panel(side.transform, "CabinetActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
             _cabinetActions = cabHost.gameObject;
-            UiFactory.Button(cabHost.transform, "CabAbs", "Absorb N/A", new Vector2(0.04f, 0.1f), new Vector2(0.32f, 0.9f),
-                () => _onCabinet?.Invoke(CrisisChoice.Absorb), UiFactory.Hex("6B3030"), paper, 11);
-            UiFactory.Button(cabHost.transform, "CabFos", "Emerg. Fossil", new Vector2(0.34f, 0.1f), new Vector2(0.66f, 0.9f),
-                () => _onCabinet?.Invoke(CrisisChoice.EmergencyFossil), UiFactory.Hex("6B4E30"), paper, 11);
-            UiFactory.Button(cabHost.transform, "CabTar", "Tariff Freeze", new Vector2(0.68f, 0.1f), new Vector2(0.96f, 0.9f),
-                () => _onCabinet?.Invoke(CrisisChoice.TariffFreeze), UiFactory.Hex("30506B"), paper, 11);
+            UiFactory.Button(cabHost.transform, "CabFos", "Emerg. Fossil", new Vector2(0.04f, 0.52f), new Vector2(0.32f, 0.95f),
+                () => _onCabinet?.Invoke(CrisisChoice.EmergencyFossil), UiFactory.Hex("6B4E30"), paper, 11,
+                "Buy adequacy with treasury and transition.");
+            UiFactory.Button(cabHost.transform, "CabTar", "Tariff Freeze", new Vector2(0.34f, 0.52f), new Vector2(0.66f, 0.95f),
+                () => _onCabinet?.Invoke(CrisisChoice.TariffFreeze), UiFactory.Hex("30506B"), paper, 11,
+                "Protect bills; treasury pays.");
+            UiFactory.Button(cabHost.transform, "CabRes", "Fill Reserve", new Vector2(0.68f, 0.52f), new Vector2(0.96f, 0.95f),
+                () => _onCabinet?.Invoke(CrisisChoice.StrategicReserve), UiFactory.Hex("3E5C3A"), paper, 11,
+                "Spend treasury to top up coal/gas/oil stocks; adequacy bump.");
+            UiFactory.Button(cabHost.transform, "CabSub", "RE Subsidy", new Vector2(0.2f, 0.05f), new Vector2(0.8f, 0.45f),
+                () => _onCabinet?.Invoke(CrisisChoice.RenewableSubsidy), UiFactory.Hex("2E4A3A"), paper, 12,
+                "Pay for transition + bill relief; lobby bruises confidence.");
 
             var pauseHost = UiFactory.Panel(side.transform, "PauseActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
             _pauseActions = pauseHost.gameObject;
@@ -898,6 +934,17 @@ namespace MinistryOfPower.UI
                 () => CloseConfirm(false), UiFactory.Hex("3A2E22"), paper, 14);
             _confirmModal.SetActive(false);
 
+            var year = UiFactory.Panel(canvasGo.transform, "YearModal", new Vector2(0.26f, 0.26f), new Vector2(0.74f, 0.74f), UiFactory.Hex("1E1812"));
+            _yearModal = year.gameObject;
+            _yearTitle = UiFactory.Label(year.transform, "YT", accent, 22, FontStyle.Bold,
+                new Vector2(0.06f, 0.78f), new Vector2(0.94f, 0.95f), TextAnchor.MiddleCenter);
+            _yearBody = UiFactory.Label(year.transform, "YB", paper, 14, FontStyle.Normal,
+                new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.76f), TextAnchor.UpperLeft);
+            UiFactory.Button(year.transform, "YOk", "Continue the mandate",
+                new Vector2(0.25f, 0.06f), new Vector2(0.75f, 0.18f),
+                HideYearReport, UiFactory.Hex("8B6914"), paper, 14);
+            _yearModal.SetActive(false);
+
             UiFactory.Panel(canvasGo.transform, "LogPanel", new Vector2(0.72f, 0.18f), new Vector2(0.995f, 0.86f), UiFactory.Hex("1A1510"));
             _logText = UiFactory.Label(canvasGo.transform, "Log", UiFactory.Hex("D2C3A8"), 12, FontStyle.Normal,
                 new Vector2(0.73f, 0.19f), new Vector2(0.99f, 0.85f), TextAnchor.UpperLeft);
@@ -961,9 +1008,9 @@ namespace MinistryOfPower.UI
                 "· Keep Adequacy & Affordability off the crash floor.\n" +
                 "· Click map regions to site builds; click plant icons for detail / retire.\n" +
                 "· Mandate bar + Mandate menu sparkline (clean% over quarters).\n" +
-                "· Construction filters: Fossil / Clean / Storage.\n" +
-                "· Budget / History menus; fuel market in Resources.\n" +
-                "· Adequacy crises: load-shed who goes dark.\n" +
+                "· Construction filters: Fossil / Clean / Storage (+ Offshore Wind, Biomass).\n" +
+                "· Cabinet: Fill Reserve / RE Subsidy · year-end report modal.\n" +
+                "· Budget / History · fuel market · load-shed crises.\n" +
                 "· F5 quicksave · Continue on main menu · tips once (Settings reset).";
             UiFactory.Button(help.transform, "HelpOk", "Got it — open the desk",
                 new Vector2(0.25f, 0.05f), new Vector2(0.75f, 0.16f),

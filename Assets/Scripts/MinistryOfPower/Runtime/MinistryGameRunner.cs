@@ -220,6 +220,11 @@ namespace MinistryOfPower.Runtime
                 _session.LogEmitted += PushLog;
                 _session.GameOver += RefreshUi;
                 _session.TipRaised += HandleTip;
+                _session.YearEnded += report =>
+                {
+                    paradoxHud?.ShowYearReport(report);
+                    RefreshUi();
+                };
                 _eventsWired = true;
             }
         }

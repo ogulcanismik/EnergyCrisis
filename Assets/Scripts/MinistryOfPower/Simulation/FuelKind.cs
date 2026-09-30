@@ -9,7 +9,8 @@ namespace MinistryOfPower.Simulation
         Wind = 4,
         Hydro = 5,
         Nuclear = 6,
-        Storage = 7
+        Storage = 7,
+        Biomass = 8
     }
 
     public static class FuelKindExtensions
@@ -25,7 +26,8 @@ namespace MinistryOfPower.Simulation
                    || kind == FuelKind.Wind
                    || kind == FuelKind.Hydro
                    || kind == FuelKind.Nuclear
-                   || kind == FuelKind.Storage;
+                   || kind == FuelKind.Storage
+                   || kind == FuelKind.Biomass;
         }
 
         public static bool IsOilLinked(this FuelKind kind)

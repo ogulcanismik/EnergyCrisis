@@ -24,7 +24,9 @@ namespace MinistryOfPower.Runtime
     [Serializable]
     public sealed class GameSaveData
     {
-        public int Version = 1;
+        /// <summary>Bump when save shape changes. Loaders tolerate missing fields via JsonUtility defaults.</summary>
+        public const int CurrentVersion = 2;
+        public int Version = CurrentVersion;
         public int Slot;
         public string ScenarioId;
         public string ScenarioName;
@@ -207,7 +209,21 @@ namespace MinistryOfPower.Runtime
                     return false;
                 }
 
-                message = $"Loaded slot {slot + 1}.";
+                if (data.Version <= 0) data.Version = 1;
+                if (data.Version > GameSaveData.CurrentVersion)
+                {
+                    message = $"Save v{data.Version} newer than client v{GameSaveData.CurrentVersion} — load anyway with care.";
+                }
+                else if (data.Version < GameSaveData.CurrentVersion)
+                {
+                    message = $"Loaded slot {slot + 1} (migrated v{data.Version}→v{GameSaveData.CurrentVersion}).";
+                    data.Version = GameSaveData.CurrentVersion;
+                }
+                else
+                {
+                    message = $"Loaded slot {slot + 1}.";
+                }
+
                 return true;
             }
             catch (Exception e)

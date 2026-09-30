@@ -241,6 +241,7 @@ namespace MinistryOfPower.Runtime
                 case FuelKind.Hydro: return new Color(0.25f, 0.45f, 0.7f);
                 case FuelKind.Nuclear: return new Color(0.4f, 0.75f, 0.45f);
                 case FuelKind.Storage: return new Color(0.55f, 0.4f, 0.7f);
+                case FuelKind.Biomass: return new Color(0.4f, 0.55f, 0.28f);
                 default: return Color.gray;
             }
         }

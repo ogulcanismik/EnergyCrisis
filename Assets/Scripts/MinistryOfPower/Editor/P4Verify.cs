@@ -133,6 +133,54 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("deckCold=").Append(hasCold).Append(" deckStorm=").Append(hasStorm).AppendLine();
                 sb.Append("newestSaveSlot=").Append(SaveGameSystem.FindNewestSlot()).AppendLine();
                 sb.AppendLine("P5 sim smoke OK");
+
+                sb.AppendLine("=== P6 SIM SMOKE ===");
+                DifficultyConfig easy = DifficultyConfig.Create(DifficultyId.Easy);
+                DifficultyConfig hard = DifficultyConfig.Create(DifficultyId.Hard);
+                sb.Append("easyBudgetMul=").Append(easy.BudgetMultiplier.ToString("0.00"))
+                    .Append(" hardBudgetMul=").Append(hard.BudgetMultiplier.ToString("0.00")).AppendLine();
+
+                bool hasOff = false, hasBio = false;
+                for (int i = 0; i < builds.Count; i++)
+                {
+                    if (builds[i].Id == "build_offshore_wind") hasOff = true;
+                    if (builds[i].Id == "build_biomass") hasBio = true;
+                }
+
+                sb.Append("catalogOffshore=").Append(hasOff).Append(" biomass=").Append(hasBio).AppendLine();
+
+                // Fresh Easy session for cabinet + year report (Normal can sack mid-year).
+                var easyS = new GameSession();
+                easyS.Start(fed, builds, easy);
+                bool reserve = easyS.TryCabinetAction(CrisisChoice.StrategicReserve, out string cabMsg);
+                sb.Append("strategicReserve=").Append(reserve).Append(" ").Append(cabMsg).AppendLine();
+                bool sub = easyS.TryCabinetAction(CrisisChoice.RenewableSubsidy, out string subMsg);
+                sb.Append("reSubsidy=").Append(sub).Append(" ").Append(subMsg).AppendLine();
+
+                int startY = easyS.Clock.Year;
+                int targetAbs = easyS.Clock.AbsoluteDay + GameClock.DaysPerYear;
+                int guardY = 0;
+                while (easyS.Clock.AbsoluteDay < targetAbs && !easyS.IsGameOver && guardY++ < GameClock.DaysPerYear * 4)
+                {
+                    // Prefer fossil over absorb so year-long smoke isn't sacked by confidence.
+                    if (easyS.AwaitingCrisisDecision)
+                        easyS.TryResolveCrisis(CrisisChoice.EmergencyFossil, out _);
+                    else
+                        easyS.AdvanceDay();
+                }
+
+                sb.Append("yearCrossed=").Append(easyS.Clock.Year > startY)
+                    .Append(" abs=").Append(easyS.Clock.AbsoluteDay)
+                    .Append(" report=").Append(easyS.LastYearReport != null)
+                    .Append(" sacked=").Append(easyS.IsGameOver).AppendLine();
+                if (easyS.LastYearReport != null)
+                    sb.Append("yearReportY=").Append(easyS.LastYearReport.Year)
+                        .Append(" adeqAvg=").Append(easyS.LastYearReport.AdequacyAvg.ToString("0.0")).AppendLine();
+
+                var save = easyS.CaptureSave(0);
+                sb.Append("saveVersion=").Append(save.Version)
+                    .Append(" current=").Append(GameSaveData.CurrentVersion).AppendLine();
+                sb.AppendLine("P6 sim smoke OK");
             }
             catch (Exception ex)
             {

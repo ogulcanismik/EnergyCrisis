@@ -29,28 +29,28 @@ namespace MinistryOfPower.Simulation
                     {
                         Id = DifficultyId.Easy,
                         DisplayName = "Easy",
-                        BudgetMultiplier = 1.45f,
-                        IncomeMultiplier = 1.25f,
-                        EventHarshness = 0.65f,
-                        EventFrequencyMultiplier = 0.65f,
-                        LobbyPressureMultiplier = 0.6f,
-                        ConfidenceDrainMultiplier = 0.65f,
-                        StartingConfidenceBonus = 10f,
-                        Blurb = "Fat treasury (+45%), rarer/softer shocks, gentler lobby & confidence drain."
+                        BudgetMultiplier = 1.65f,
+                        IncomeMultiplier = 1.35f,
+                        EventHarshness = 0.5f,
+                        EventFrequencyMultiplier = 0.48f,
+                        LobbyPressureMultiplier = 0.45f,
+                        ConfidenceDrainMultiplier = 0.45f,
+                        StartingConfidenceBonus = 16f,
+                        Blurb = "Fat treasury (+65%), soft/rare shocks — first years are survivable learning space."
                     };
                 case DifficultyId.Hard:
                     return new DifficultyConfig
                     {
                         Id = DifficultyId.Hard,
                         DisplayName = "Hard",
-                        BudgetMultiplier = 0.7f,
-                        IncomeMultiplier = 0.8f,
-                        EventHarshness = 1.45f,
-                        EventFrequencyMultiplier = 1.45f,
-                        LobbyPressureMultiplier = 1.5f,
-                        ConfidenceDrainMultiplier = 1.45f,
-                        StartingConfidenceBonus = -10f,
-                        Blurb = "Thin treasury (−30%), frequent harsh shocks, angry lobby, fast sack clock."
+                        BudgetMultiplier = 0.62f,
+                        IncomeMultiplier = 0.72f,
+                        EventHarshness = 1.6f,
+                        EventFrequencyMultiplier = 1.55f,
+                        LobbyPressureMultiplier = 1.65f,
+                        ConfidenceDrainMultiplier = 1.55f,
+                        StartingConfidenceBonus = -14f,
+                        Blurb = "Thin cash (−38%), loud shocks, vicious lobby — mistakes compound fast."
                     };
                 default:
                     return new DifficultyConfig
