@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aba8da355466bf94f94dc10da7e840db, type: 3}
+  m_Name: Plant_Oil
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.PlantDefinition
+  Id: oil
+  DisplayName: Oil Peaker
+  Fuel: 2
+  CapacityMw: 100
+  Availability: 0.85
+  VariableCostPerMwh: 72
+  OilExposure: 1

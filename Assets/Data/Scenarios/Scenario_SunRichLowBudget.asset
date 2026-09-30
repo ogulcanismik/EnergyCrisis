@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3a633eaef367b041926998650255caf, type: 3}
+  m_Name: Scenario_SunRichLowBudget
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.ScenarioDefinition
+  Id: sun_rich
+  DisplayName: Sun-Rich Low Budget
+  Description: Tight cash, excellent sun, fragile adequacy. Leapfrog if you can finance
+    it.
+  StartYear: 2026
+  Seed: 77
+  StartingBudget: 70
+  QuarterlyIncome: 9
+  BaseDemandMw: 780
+  SolarResource: 1.45
+  WindResource: 0.9
+  FossilLobbyStrength: 0.35
+  ImportCapacityMw: 160
+  StartingAdequacy: 62
+  StartingAffordability: 58
+  StartingTransition: 22
+  StartingConfidence: 68
+  StartingPlants:
+  - Definition: {fileID: 11400000, guid: 081384fe57d75a646980f8331f86594b, type: 2}
+    OverrideName: Imported Oil Units
+    CapacityMwOverride: 160
+  - Definition: {fileID: 11400000, guid: 3fc32d854fdbc6042a1cade1be5a6603, type: 2}
+    OverrideName: City Gas
+    CapacityMwOverride: 200
+  - Definition: {fileID: 11400000, guid: e65862b13d0c87c4e886b0aebc566d17, type: 2}
+    OverrideName: Aging Coal
+    CapacityMwOverride: 180
+  - Definition: {fileID: 11400000, guid: 2df498576507d2747955a5b6c7166c30, type: 2}
+    OverrideName: Desert Solar Parks
+    CapacityMwOverride: 160
+  - Definition: {fileID: 11400000, guid: 0abdd66c8b9393c4bb770cb5e80d3e10, type: 2}
+    OverrideName: River Hydro
+    CapacityMwOverride: 140
+  AvailableBuilds:
+  - {fileID: 11400000, guid: c0e937e7e0d89144e9c3e4e8f033b39c, type: 2}
+  - {fileID: 11400000, guid: 5ab8fcb81e5f64b488f97436e3cd4bb2, type: 2}
+  - {fileID: 11400000, guid: 0f51dfe6c8b7beb44baa24e299bd96f8, type: 2}
+  EventDeck:
+  - {fileID: 11400000, guid: 9d7e274ca1b489b40a3c62d86ddfd6a6, type: 2}
+  - {fileID: 11400000, guid: bd968f7f615c9364988a6d16fb095955, type: 2}
+  - {fileID: 11400000, guid: ea838debb7da36a459838ab881a42db7, type: 2}
+  - {fileID: 11400000, guid: dcb267d249da53242a0aa55506d43277, type: 2}
