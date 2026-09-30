@@ -168,8 +168,10 @@ namespace MinistryOfPower.UI.Map
             var art = GameObject.CreatePrimitive(PrimitiveType.Quad);
             art.name = "MapArt";
             art.transform.SetParent(_root, false);
-            // Face +Y toward the top-down map camera.
-            art.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
+            // Face +Y toward the top-down map camera. Yaw 0 keeps PNG geography
+            // upright: west → −X, east → +X, Florida bottom-right of CONUS.
+            // (Yaw 180 mirrored the art against UsaMapLayout centroids.)
+            art.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             art.transform.position = new Vector3(
                 ResolveArtCenter().x,
                 ResolveArtHeight(),

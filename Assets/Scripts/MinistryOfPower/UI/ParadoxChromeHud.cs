@@ -430,15 +430,22 @@ namespace MinistryOfPower.UI
 
         private void ApplyTimeCluster(GameSession s)
         {
+            if (_dateTimeText == null) return;
             float hour = s.Clock.DayFraction * 24f;
             bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
             bool day = hour >= 6f && hour < 20f;
+            // Always bind a visible clock string — never blank the date row.
             _dateTimeText.text =
                 s.Clock.FormatDate() + "  " + s.Clock.FormatTimeOfDay() +
                 "  ·  " + s.Clock.CurrentSeason +
                 "  ·  " + (day ? "DAY" : "NIGHT");
-            _tickText.text = peak ? "PEAK" : "OFF-PEAK";
-            _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+            if (_dateTimeText.color.a < 0.9f)
+                _dateTimeText.color = UiFactory.Hex("E7DCC8");
+            if (_tickText != null)
+            {
+                _tickText.text = peak ? "PEAK" : "OFF-PEAK";
+                _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+            }
         }
 
         private static string MapSpeedLabel(GameSpeed speed)
@@ -1104,21 +1111,33 @@ namespace MinistryOfPower.UI
             _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
                 new Vector2(0.28f, 0.91f), new Vector2(0.70f, 0.955f));
 
-            // Compact time cluster (right): date/hour above Pause/1x/2x/5x/Skip — not half the top bar.
-            float timeLeft = Mathf.Clamp(1f - 0.30f * _timeControlScale, 0.55f, 0.78f);
+            // Compact time cluster (right): date/hour/season ABOVE Pause/1x/2x/5x/Skip.
+            // Scale widens/narrows the cluster, but the date row always keeps a readable span
+            // (never collapse via timeControlScale — GameTuning must not hide the clock).
+            float scale = Mathf.Clamp(_timeControlScale, 0.6f, 1.4f);
+            float timeLeft = Mathf.Clamp(1f - 0.32f * scale, 0.65f, 0.76f);
+            const float peakLeft = 0.895f;
+            const float dateTop = 0.958f;
+            const float dateBot = 0.995f;
             UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(timeLeft, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
-            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 11, FontStyle.Bold,
-                new Vector2(timeLeft + 0.005f, 0.955f), new Vector2(timeLeft + 0.20f * _timeControlScale, 0.995f), TextAnchor.MiddleLeft);
+            float dateRight = Mathf.Max(timeLeft + 0.18f, peakLeft - 0.002f);
+            _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, Mathf.Max(12, _timeControlFontSize + 2), FontStyle.Bold,
+                new Vector2(timeLeft + 0.006f, dateTop), new Vector2(dateRight, dateBot), TextAnchor.MiddleLeft);
+            _dateTimeText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _dateTimeText.verticalOverflow = VerticalWrapMode.Overflow;
+            _dateTimeText.raycastTarget = false;
             _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 10, FontStyle.Bold,
-                new Vector2(0.90f, 0.955f), new Vector2(0.945f, 0.995f), TextAnchor.MiddleCenter);
+                new Vector2(peakLeft, dateTop), new Vector2(0.945f, dateBot), TextAnchor.MiddleCenter);
+            _tickText.raycastTarget = false;
             _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 10, FontStyle.Bold,
-                new Vector2(0.945f, 0.955f), new Vector2(0.995f, 0.995f), TextAnchor.MiddleCenter);
+                new Vector2(0.945f, dateTop), new Vector2(0.995f, dateBot), TextAnchor.MiddleCenter);
+            _speedText.raycastTarget = false;
             const float speedY0 = 0.908f;
             const float speedY1 = 0.952f;
             float speedX0 = timeLeft + 0.005f;
-            float speedSlot = _timeSpeedSlotWidth;
+            float speedSlot = Mathf.Clamp(_timeSpeedSlotWidth, 0.04f, 0.10f);
             const float speedGap = 0.003f;
-            int spdFont = _timeControlFontSize;
+            int spdFont = Mathf.Max(9, _timeControlFontSize);
             float daySec = GameClock.ActiveSecondsPerDay1x;
             UiFactory.Button(canvasGo.transform, "P", "❚❚",
                 new Vector2(speedX0, speedY0), new Vector2(speedX0 + speedSlot, speedY1),

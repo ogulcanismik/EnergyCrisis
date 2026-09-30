@@ -179,6 +179,34 @@ namespace MinistryOfPower.EditorTools
 
                 sb.Append("pickOk=").Append(pickOk).AppendLine();
 
+                // Geography: west left (−X), east right (+X); FL south-east of CA.
+                Vector3 ca = UsaMapLayout.Centroid("CA");
+                Vector3 fl = UsaMapLayout.Centroid("FL");
+                Vector3 wa = UsaMapLayout.Centroid("WA");
+                Vector3 me = UsaMapLayout.Centroid("ME");
+                bool geoOk = ca.x < fl.x && wa.x < me.x && fl.z < wa.z;
+                sb.Append("geoCA=").Append(ca.ToString("F2"))
+                    .Append(" FL=").Append(fl.ToString("F2"))
+                    .Append(" geoOk=").Append(geoOk).AppendLine();
+
+                bool artOrientOk = true;
+                var mapArtGo = GameObject.Find("MapArt");
+                if (mapArtGo != null)
+                {
+                    Vector3 e = mapArtGo.transform.rotation.eulerAngles;
+                    // Expect yaw ≈ 0 (not 180) so PNG west stays world −X.
+                    float yaw = e.y;
+                    if (yaw > 180f) yaw -= 360f;
+                    artOrientOk = Mathf.Abs(e.x - 90f) < 2f && Mathf.Abs(yaw) < 5f;
+                    sb.Append("mapArtEuler=").Append(e.ToString("F0"))
+                        .Append(" artOrientOk=").Append(artOrientOk).AppendLine();
+                }
+                else
+                {
+                    sb.AppendLine("mapArtEuler=n/a artOrientOk=" + (!UsaMapLayout.UsePrototypeArt));
+                    artOrientOk = !UsaMapLayout.UsePrototypeArt;
+                }
+
                 bool bordersOk = UsaMapLayout.UsePrototypeArt ? borders == 0 : borders >= 50;
                 bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && !ocean);
                 bool ok = map != null && camCtrl != null && political && !legacyPlane
@@ -186,7 +214,7 @@ namespace MinistryOfPower.EditorTools
                           && distinctCodes >= UsaMapLayout.ExpectedStateCount
                           && UsaMapLayout.StateCount >= UsaMapLayout.ExpectedStateCount
                           && plants.Length >= 1 && cables >= 10 && bordersOk && artOk
-                          && orthoOk && panOk && zoomOk && pickOk;
+                          && orthoOk && panOk && zoomOk && pickOk && geoOk && artOrientOk;
                 sb.Append("bordersOk=").Append(bordersOk).AppendLine();
                 sb.Append("artOk=").Append(artOk).AppendLine();
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();

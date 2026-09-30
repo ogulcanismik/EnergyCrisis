@@ -142,15 +142,25 @@ namespace MinistryOfPower.EditorTools
 
             bool stackOk = false;
             bool narrowOk = false;
+            bool dateVisible = false;
             if (date != null && pause != null)
             {
                 float dateY = date.rectTransform.anchorMin.y;
                 float btnY = pause.anchorMax.y;
                 stackOk = dateY >= btnY - 0.001f;
+                float dateW = date.rectTransform.anchorMax.x - date.rectTransform.anchorMin.x;
+                string dateSample = (date.text ?? "").Replace('\n', ' ').Trim();
+                dateVisible = date.gameObject.activeInHierarchy
+                              && date.enabled
+                              && date.color.a >= 0.9f
+                              && dateW >= 0.15f
+                              && dateSample.Length >= 8;
                 sb.Append("dateAnchorMinY=").Append(dateY.ToString("0.000"))
                     .Append(" pauseAnchorMaxY=").Append(btnY.ToString("0.000"))
                     .Append(" dateAboveSpeeds=").Append(stackOk).AppendLine();
-                sb.Append("dateSample=").Append((date.text ?? "").Replace('\n', ' ')).AppendLine();
+                sb.Append("dateWidth=").Append(dateW.ToString("0.000"))
+                    .Append(" dateVisible=").Append(dateVisible).AppendLine();
+                sb.Append("dateSample=").Append(dateSample).AppendLine();
                 sb.Append("tickSample=").Append(tick != null ? tick.text : "").AppendLine();
             }
 
@@ -211,7 +221,7 @@ namespace MinistryOfPower.EditorTools
             bool ok = date != null && tick != null && pause != null && s1 != null
                       && reports != null && flyout != null && lobbyInfo != null
                       && filterToggle != null && dealBrief != null
-                      && stackOk && narrowOk && exclusiveOk && chartLive
+                      && stackOk && narrowOk && exclusiveOk && chartLive && dateVisible
                       && mandateRail == null && budgetRail == null
                       && Mathf.Approximately(GameClock.SecondsPerDay1x, 168f);
             sb.AppendLine(ok ? "HUD_LAYOUT_OK=True" : "HUD_LAYOUT_OK=False");
