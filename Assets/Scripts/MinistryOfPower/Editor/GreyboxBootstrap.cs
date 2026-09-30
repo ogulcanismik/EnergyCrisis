@@ -62,7 +62,10 @@ namespace MinistryOfPower.EditorTools
 
             if (root.GetComponent<ParadoxChromeHud>() == null) root.AddComponent<ParadoxChromeHud>();
             if (root.GetComponent<DayNightWeatherController>() == null) root.AddComponent<DayNightWeatherController>();
-
+            if (root.GetComponent<MinistryOfPower.UI.Map.PoliticalMapPresenter>() == null)
+                root.AddComponent<MinistryOfPower.UI.Map.PoliticalMapPresenter>();
+            if (root.GetComponent<MinistryOfPower.UI.Map.MapCameraController>() == null)
+                root.AddComponent<MinistryOfPower.UI.Map.MapCameraController>();
             // Paradox chrome is the only desk HUD — strip any leftover diegetic desk.
             foreach (var mb in root.GetComponents<MonoBehaviour>())
             {

@@ -54,11 +54,12 @@ namespace MinistryOfPower.Runtime
 
         public static Color BaseColor(RegionId id)
         {
+            // Match UsaMapLayout political fills so hover restore stays consistent.
             switch (id)
             {
-                case RegionId.North: return new Color(0.45f, 0.5f, 0.55f);
-                case RegionId.Coast: return new Color(0.35f, 0.45f, 0.6f);
-                case RegionId.Desert: return new Color(0.55f, 0.45f, 0.3f);
+                case RegionId.North: return new Color(0.42f, 0.48f, 0.52f, 1f);
+                case RegionId.Coast: return new Color(0.36f, 0.44f, 0.55f, 1f);
+                case RegionId.Desert: return new Color(0.52f, 0.44f, 0.34f, 1f);
                 default: return Color.gray;
             }
         }
