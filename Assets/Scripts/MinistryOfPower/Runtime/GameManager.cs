@@ -61,6 +61,10 @@ namespace MinistryOfPower.Runtime
             if (mapTuning != null)
                 mapTuning.BindGameTuning(t);
 
+            DayNightWeatherController dayNight = FindFirstObjectByType<DayNightWeatherController>();
+            if (dayNight != null)
+                dayNight.BindGameTuning(t);
+
             if (uiManager != null)
                 uiManager.BindTuning(t);
 
@@ -204,6 +208,9 @@ namespace MinistryOfPower.Runtime
             DayNightWeatherController dayNight = Object.FindFirstObjectByType<DayNightWeatherController>();
             if (dayNight == null)
                 dayNight = worldHost.AddComponent<DayNightWeatherController>();
+
+            if (Object.FindFirstObjectByType<MapDayTerminator>() == null)
+                worldHost.AddComponent<MapDayTerminator>();
 
             if (Object.FindFirstObjectByType<PoliticalMapPresenter>() == null)
                 worldHost.AddComponent<PoliticalMapPresenter>();

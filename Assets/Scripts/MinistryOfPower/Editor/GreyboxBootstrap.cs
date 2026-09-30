@@ -153,6 +153,8 @@ namespace MinistryOfPower.EditorTools
 
             if (mapSystems.GetComponent<DayNightWeatherController>() == null)
                 mapSystems.AddComponent<DayNightWeatherController>();
+            if (mapSystems.GetComponent<MapDayTerminator>() == null)
+                mapSystems.AddComponent<MapDayTerminator>();
             if (mapSystems.GetComponent<PoliticalMapPresenter>() == null)
                 mapSystems.AddComponent<PoliticalMapPresenter>();
             if (mapSystems.GetComponent<MapCameraController>() == null)

@@ -95,6 +95,25 @@ namespace MinistryOfPower.Data
         [Tooltip("World XZ center offset of the PNG quad.")]
         public Vector2 pngWorldOffset = new Vector2(-0.1f, -0.85f);
 
+        [Header("Map — Day/night terminator")]
+        [Tooltip("Max opacity of the night side overlay (day side stays clear).")]
+        [Range(0.2f, 0.95f)]
+        public float terminatorNightAlpha = 0.72f;
+
+        [Tooltip("Softness of the terminator band in illumination space.")]
+        [Range(0.04f, 0.4f)]
+        public float terminatorSoftness = 0.14f;
+
+        [Tooltip("How much CONUS longitude the overlay treats as lit span (higher = sharper day/night contrast).")]
+        [Range(0.4f, 2f)]
+        public float terminatorLonSpan = 1.05f;
+
+        [Tooltip("Max seasonal N–S tilt of the terminator in degrees.")]
+        [Range(0f, 25f)]
+        public float terminatorSeasonTiltDegrees = 12f;
+
+        public Color terminatorNightColor = new Color(0.02f, 0.04f, 0.10f, 1f);
+
         [Header("Economy display")]
         [Tooltip("Informational only — DisplayUnits formatting stays fixed. Starting treasury is difficulty/scenario.")]
         public bool displayTreasuryAsBillions = true;

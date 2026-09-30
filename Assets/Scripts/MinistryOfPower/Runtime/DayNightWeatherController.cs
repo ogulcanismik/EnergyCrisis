@@ -2,14 +2,16 @@ using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
+using MinistryOfPower.Data;
 using MinistryOfPower.Simulation;
 using MinistryOfPower.UI.Map;
 
 namespace MinistryOfPower.Runtime
 {
     /// <summary>
-    /// Grey-box day-night lighting + weather tint. Map geometry lives in
-    /// <see cref="PoliticalMapPresenter"/>; this component owns lighting and left-click picks.
+    /// Grey-box day-night presentation + weather tint. Map geometry lives in
+    /// <see cref="PoliticalMapPresenter"/>; day/night look is a terminator overlay
+    /// (<see cref="MapDayTerminator"/>), not an orbiting light. This component also owns left-click picks.
     /// </summary>
     public sealed class DayNightWeatherController : MonoBehaviour
     {
@@ -17,6 +19,8 @@ namespace MinistryOfPower.Runtime
         [SerializeField] private Camera targetCamera;
         [SerializeField] private PoliticalMapPresenter mapPresenter;
         [SerializeField] private MapCameraController mapCamera;
+        [SerializeField] private MapDayTerminator dayTerminator;
+        [SerializeField] private GameTuning gameTuning;
 
         private MinistryGameRunner _runner;
 
@@ -24,6 +28,12 @@ namespace MinistryOfPower.Runtime
         {
             _runner = runner;
             EnsureWorld();
+        }
+
+        public void BindGameTuning(GameTuning tuning)
+        {
+            gameTuning = tuning;
+            if (dayTerminator != null) dayTerminator.BindGameTuning(tuning);
         }
 
         private void Update()
@@ -110,6 +120,18 @@ namespace MinistryOfPower.Runtime
                 if (mapCamera == null) mapCamera = gameObject.AddComponent<MapCameraController>();
             }
 
+            if (dayTerminator == null)
+            {
+                dayTerminator = GetComponent<MapDayTerminator>();
+                if (dayTerminator == null) dayTerminator = gameObject.AddComponent<MapDayTerminator>();
+            }
+
+            if (gameTuning == null)
+            {
+                var gm = FindFirstObjectByType<GameManager>();
+                if (gm != null) gameTuning = gm.Tuning;
+            }
+
             bool sunRich = _runner != null
                            && _runner.Session?.Scenario != null
                            && _runner.Session.Scenario.Id == "sun_rich";
@@ -117,11 +139,16 @@ namespace MinistryOfPower.Runtime
             mapPresenter.EnsureBuilt();
             mapCamera.Bind(targetCamera);
 
-            // Soft top light for flat political map (sun still animates in LateUpdate).
+            dayTerminator.BindGameTuning(gameTuning);
+            dayTerminator.EnsureOverlay();
+
+            // Stable top-down key light for map readability — day/night is the terminator overlay.
             if (sunLight != null)
             {
                 sunLight.transform.rotation = Quaternion.Euler(70f, -30f, 0f);
                 sunLight.shadows = LightShadows.None;
+                sunLight.intensity = 1.05f;
+                sunLight.color = new Color(1f, 0.98f, 0.94f);
             }
         }
 
@@ -134,22 +161,25 @@ namespace MinistryOfPower.Runtime
             mapPresenter?.RefreshPlants(_runner.Session);
 
             GameClock clock = _runner.Session.Clock;
-            float t = clock.DayFraction;
-            float elev = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f);
-            float intensity = Mathf.Clamp01(elev * 0.9f + 0.15f);
+            dayTerminator?.ApplyClock(clock);
+
+            // Keep ambient light readable; weather only gently dims (not a day-night orbit).
             if (sunLight != null)
             {
-                // Keep mostly top-down; nudge azimuth for day cycle without wrecking map readability.
-                sunLight.transform.rotation = Quaternion.Euler(55f + elev * 25f, -30f + t * 40f, 0f);
-                sunLight.intensity = intensity * WeatherLightMul(_runner.Session.CurrentWeather);
-                sunLight.color = Color.Lerp(new Color(0.4f, 0.45f, 0.7f), new Color(1f, 0.96f, 0.88f), intensity);
+                float weatherMul = WeatherLightMul(_runner.Session.CurrentWeather);
+                sunLight.intensity = 1.05f * weatherMul;
+                sunLight.color = new Color(1f, 0.98f, 0.94f);
+                sunLight.transform.rotation = Quaternion.Euler(70f, -30f, 0f);
             }
 
             if (targetCamera != null)
             {
+                float t = clock.DayFraction;
+                float elev = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f);
+                float dayness = Mathf.Clamp01(elev * 0.9f + 0.15f);
                 Color daySky = new Color(0.38f, 0.48f, 0.58f);
                 Color nightSky = new Color(0.05f, 0.06f, 0.1f);
-                Color sky = Color.Lerp(nightSky, daySky, intensity);
+                Color sky = Color.Lerp(nightSky, daySky, dayness);
                 sky = ApplyWeatherSky(sky, _runner.Session.CurrentWeather);
                 targetCamera.backgroundColor = sky;
                 targetCamera.clearFlags = CameraClearFlags.SolidColor;
@@ -167,9 +197,9 @@ namespace MinistryOfPower.Runtime
         {
             switch (w)
             {
-                case WeatherKind.Overcast: return 0.65f;
-                case WeatherKind.Storm: return 0.45f;
-                case WeatherKind.HeatHaze: return 1.1f;
+                case WeatherKind.Overcast: return 0.85f;
+                case WeatherKind.Storm: return 0.7f;
+                case WeatherKind.HeatHaze: return 1.05f;
                 default: return 1f;
             }
         }
