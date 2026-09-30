@@ -586,7 +586,14 @@ namespace MinistryOfPower.UI
         {
             if (_regionPanel == null || !_regionPanel.activeSelf || _openRegion == null || s == null) return;
             _regionTitle.text = RegionCatalog.DisplayName(_openRegion.Value).ToUpperInvariant();
-            _regionBody.text = RegionCatalog.BuildDetail(s, _openRegion.Value);
+            string stateLine = "";
+            if (!string.IsNullOrEmpty(RegionMarker.SelectedStateCode))
+            {
+                var st = MinistryOfPower.UI.Map.UsaMapLayout.Find(RegionMarker.SelectedStateCode);
+                stateLine = "State: " + st.FullName + " (" + st.Code + ")\n\n";
+            }
+
+            _regionBody.text = stateLine + RegionCatalog.BuildDetail(s, _openRegion.Value);
         }
 
         private void RefreshPlantPanel(GameSession s)

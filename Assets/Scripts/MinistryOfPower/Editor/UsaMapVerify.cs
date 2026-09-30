@@ -9,7 +9,7 @@ using MinistryOfPower.UI.Map;
 
 namespace MinistryOfPower.EditorTools
 {
-    /// <summary>Play-mode smoke for Paradox USA map: regions, plants, cables, camera framing.</summary>
+    /// <summary>Play-mode smoke for Paradox USA map: 50 states, plants, cables, camera framing.</summary>
     public static class UsaMapVerify
     {
         private const string ArmKey = "MoP.UsaMapVerify";
@@ -74,7 +74,7 @@ namespace MinistryOfPower.EditorTools
 
             if (EditorApplication.timeSinceStartup - _enteredAt < 1.2) return;
 
-            var sb = new StringBuilder(1024);
+            var sb = new StringBuilder(1536);
             sb.AppendLine("=== USA MAP VERIFY ===");
             try
             {
@@ -95,13 +95,27 @@ namespace MinistryOfPower.EditorTools
                 }
 
                 bool political = GameObject.Find("PoliticalMap") != null;
+                bool statesRoot = GameObject.Find("States") != null
+                                  || (GameObject.Find("PoliticalMap") != null
+                                      && GameObject.Find("PoliticalMap").transform.Find("States") != null);
                 bool legacyPlane = GameObject.Find("GreyboxMap") != null;
+
+                int distinctCodes = 0;
+                var seen = new System.Collections.Generic.HashSet<string>();
+                for (int i = 0; i < regions.Length; i++)
+                {
+                    string code = regions[i].StateCode;
+                    if (!string.IsNullOrEmpty(code) && seen.Add(code)) distinctCodes++;
+                }
 
                 sb.Append("mapPresenter=").Append(map != null).AppendLine();
                 sb.Append("camCtrl=").Append(camCtrl != null).AppendLine();
                 sb.Append("politicalGo=").Append(political).AppendLine();
+                sb.Append("statesRoot=").Append(statesRoot).AppendLine();
                 sb.Append("legacyPlane=").Append(legacyPlane).AppendLine();
-                sb.Append("regions=").Append(regions.Length).AppendLine();
+                sb.Append("states=").Append(regions.Length).AppendLine();
+                sb.Append("distinctStateCodes=").Append(distinctCodes).AppendLine();
+                sb.Append("layoutStateCount=").Append(UsaMapLayout.StateCount).AppendLine();
                 sb.Append("plants=").Append(plants.Length).AppendLine();
                 sb.Append("cables=").Append(cables).AppendLine();
                 sb.Append("borders=").Append(borders).AppendLine();
@@ -133,34 +147,36 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("panOk=").Append(panOk).AppendLine();
                 sb.Append("zoomOk=").Append(zoomOk).AppendLine();
 
-                // Left-click ray pick toward each region centroid (ortho center may miss water gaps).
-            bool pickOk = false;
-            string hitNames = "";
-            if (cam != null)
-            {
-                foreach (RegionId id in new[] { RegionId.Coast, RegionId.North, RegionId.Desert })
+                bool pickOk = false;
+                string hitNames = "";
+                if (cam != null)
                 {
-                    Vector3 c = UsaMapLayout.Centroid(id);
-                    Vector3 origin = new Vector3(c.x, 22f, c.z);
-                    if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 50f))
+                    foreach (string code in new[] { "PA", "IL", "AZ", "TX", "CA", "NY", "FL" })
                     {
-                        var region = hit.collider.GetComponentInParent<RegionMarker>();
-                        var plant = hit.collider.GetComponentInParent<PlantMarker>();
-                        if (region != null || plant != null)
+                        Vector3 c = UsaMapLayout.Centroid(code);
+                        Vector3 origin = new Vector3(c.x, 22f, c.z);
+                        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 50f))
                         {
-                            pickOk = true;
-                            hitNames += hit.collider.name + ",";
+                            var region = hit.collider.GetComponentInParent<RegionMarker>();
+                            var plant = hit.collider.GetComponentInParent<PlantMarker>();
+                            if (region != null || plant != null)
+                            {
+                                pickOk = true;
+                                hitNames += (region != null ? region.StateCode : hit.collider.name) + ",";
+                            }
                         }
                     }
-                }
 
-                sb.Append("centroidHits=").Append(hitNames).AppendLine();
-            }
+                    sb.Append("centroidHits=").Append(hitNames).AppendLine();
+                }
 
                 sb.Append("pickOk=").Append(pickOk).AppendLine();
 
                 bool ok = map != null && camCtrl != null && political && !legacyPlane
-                          && regions.Length >= 3 && plants.Length >= 1 && cables >= 3
+                          && regions.Length >= UsaMapLayout.ExpectedStateCount
+                          && distinctCodes >= UsaMapLayout.ExpectedStateCount
+                          && UsaMapLayout.StateCount >= UsaMapLayout.ExpectedStateCount
+                          && plants.Length >= 1 && cables >= 10 && borders >= 50
                           && orthoOk && panOk && zoomOk && pickOk;
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();
                 Finish(sb.ToString());

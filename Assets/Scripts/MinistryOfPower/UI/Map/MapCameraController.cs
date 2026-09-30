@@ -16,7 +16,7 @@ namespace MinistryOfPower.UI.Map
         [SerializeField] private float zoomStep = 1.1f;
         [SerializeField] private float minOrtho = UsaMapLayout.MinOrthoSize;
         [SerializeField] private float maxOrtho = UsaMapLayout.MaxOrthoSize;
-        [SerializeField] private Vector2 panBounds = new Vector2(10f, 7f);
+        [SerializeField] private Vector2 panBounds = new Vector2(14f, 10f);
 
         private bool _panning;
         private Vector2 _lastPointer;

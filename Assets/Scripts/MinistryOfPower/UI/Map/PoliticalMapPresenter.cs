@@ -5,8 +5,8 @@ using MinistryOfPower.Simulation;
 namespace MinistryOfPower.UI.Map
 {
     /// <summary>
-    /// Paradox political-map presenter: USA grey-box regions, interconnects, plant pins.
-    /// Presentation only — simulation stays in GameSession / RegionCatalog.
+    /// Paradox political-map presenter: 50 USA states, interconnects, plant pins.
+    /// Presentation only — simulation stays in GameSession / RegionCatalog (3 RegionIds).
     /// </summary>
     public sealed class PoliticalMapPresenter : MonoBehaviour
     {
@@ -15,9 +15,16 @@ namespace MinistryOfPower.UI.Map
         private Transform _root;
         private Transform _plantRoot;
         private Transform _corridorRoot;
+        private Transform _statesRoot;
+        private TextMesh[] _labels;
+        private string[] _labelCodes;
+        private string[] _labelNames;
         private int _lastPlantSig = int.MinValue;
         private bool _built;
         private Material _sharedLit;
+        private float _lastOrtho = -1f;
+        private string _lastSelectedState = "";
+        private bool _lastFullNames;
 
         public void Configure(bool sunRich)
         {
@@ -31,6 +38,12 @@ namespace MinistryOfPower.UI.Map
             if (_built) return;
             BuildWorld();
             _built = true;
+        }
+
+        private void LateUpdate()
+        {
+            if (!_built) return;
+            RefreshLabels();
         }
 
         public void RefreshPlants(GameSession session)
@@ -67,19 +80,20 @@ namespace MinistryOfPower.UI.Map
                 int r = (int)p.Region;
                 if (r < 0 || r > 2) r = 0;
 
-                Vector3 basePos = UsaMapLayout.PlantAnchor(p.Region);
+                Vector3 basePos = UsaMapLayout.PlantAnchor(p.Region, counts[r]);
                 float ang = counts[r] * 0.85f;
                 counts[r]++;
-                Vector3 pos = basePos + new Vector3(Mathf.Cos(ang) * 1.15f, 0f, Mathf.Sin(ang) * 1.15f);
+                // Keep markers near state centroid; small orbit so stacks stay readable.
+                float radius = 0.35f + Mathf.Min(counts[r] - 1, 4) * 0.12f;
+                Vector3 pos = basePos + new Vector3(Mathf.Cos(ang) * radius, 0f, Mathf.Sin(ang) * radius);
 
                 var pin = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 pin.name = "Plant_" + p.Id;
                 pin.transform.SetParent(_plantRoot, false);
                 pin.transform.position = pos;
                 float h = 0.28f + Mathf.Clamp(p.CapacityMw / 1200f, 0.05f, 0.55f);
-                pin.transform.localScale = new Vector3(0.38f, h, 0.38f);
+                pin.transform.localScale = new Vector3(0.32f, h, 0.32f);
 
-                // Flatten collider slightly taller for easier picks under ortho cam.
                 var col = pin.GetComponent<CapsuleCollider>();
                 if (col != null) col.height = 2.2f;
 
@@ -102,8 +116,9 @@ namespace MinistryOfPower.UI.Map
                                       ?? Shader.Find("Standard"));
 
             BuildOcean();
-            BuildRegions();
+            BuildStates();
             BuildCorridors();
+            RefreshLabels(force: true);
         }
 
         private void ClearLegacyGreybox()
@@ -132,73 +147,82 @@ namespace MinistryOfPower.UI.Map
                 1f,
                 UsaMapLayout.OceanSize.y / 10f);
             ApplyColor(ocean, UsaMapLayout.OceanFill(sunRichTint));
-            // Ocean is not selectable — remove collider so region meshes receive hits.
             var col = ocean.GetComponent<Collider>();
             if (col != null) Destroy(col);
         }
 
-        private void BuildRegions()
+        private void BuildStates()
         {
-            var regionsRoot = new GameObject("Regions");
-            regionsRoot.transform.SetParent(_root, false);
+            var statesRoot = new GameObject("States");
+            statesRoot.transform.SetParent(_root, false);
+            _statesRoot = statesRoot.transform;
 
-            for (int i = 0; i < UsaMapLayout.Regions.Length; i++)
+            int n = UsaMapLayout.States.Length;
+            _labels = new TextMesh[n];
+            _labelCodes = new string[n];
+            _labelNames = new string[n];
+
+            for (int i = 0; i < n; i++)
             {
-                UsaMapLayout.RegionPoly poly = UsaMapLayout.Regions[i];
-                var go = new GameObject("Region_" + poly.Id);
-                go.transform.SetParent(regionsRoot.transform, false);
+                UsaMapLayout.StatePoly poly = UsaMapLayout.States[i];
+                var go = new GameObject("State_" + poly.Code);
+                go.transform.SetParent(_statesRoot, false);
 
                 var mf = go.AddComponent<MeshFilter>();
-                mf.sharedMesh = PolygonMeshUtil.BuildFlatMesh(poly.Ring, UsaMapLayout.RegionHeight, "Mesh_" + poly.Id);
+                mf.sharedMesh = PolygonMeshUtil.BuildFlatMesh(poly.Ring, UsaMapLayout.RegionHeight, "Mesh_" + poly.Code);
 
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = new Material(_sharedLit);
-                mr.sharedMaterial.color = UsaMapLayout.RegionFill(poly.Id, sunRichTint);
+                Color fill = UsaMapLayout.StateFill(poly.Code, sunRichTint);
+                mr.sharedMaterial.color = fill;
 
                 var mc = go.AddComponent<MeshCollider>();
                 mc.sharedMesh = mf.sharedMesh;
 
                 var marker = go.AddComponent<RegionMarker>();
-                marker.Configure(poly.Id, UsaMapLayout.RegionFill(poly.Id, sunRichTint));
+                marker.Configure(poly.Region, poly.Code, poly.FullName, fill);
 
                 BuildBorder(go.transform, poly);
-                BuildLabel(go.transform, poly);
+                _labels[i] = BuildLabel(go.transform, poly);
+                _labelCodes[i] = poly.Code;
+                _labelNames[i] = poly.FullName;
             }
         }
 
-        private void BuildBorder(Transform parent, UsaMapLayout.RegionPoly poly)
+        private void BuildBorder(Transform parent, UsaMapLayout.StatePoly poly)
         {
             var borderGo = new GameObject("Border");
             borderGo.transform.SetParent(parent, false);
             var lr = borderGo.AddComponent<LineRenderer>();
             lr.useWorldSpace = true;
             lr.loop = true;
-            lr.widthMultiplier = 0.08f;
+            lr.widthMultiplier = 0.045f;
             lr.numCornerVertices = 2;
             lr.material = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Standard"));
             lr.startColor = lr.endColor = MapPalette.Border;
-                Vector3[] pts = PolygonMeshUtil.OutlineWorld(poly.Ring, UsaMapLayout.RegionHeight + 0.1f, closed: true);
+            Vector3[] pts = PolygonMeshUtil.OutlineWorld(poly.Ring, UsaMapLayout.RegionHeight + 0.1f, closed: true);
             lr.positionCount = pts.Length;
             lr.SetPositions(pts);
         }
 
-        private void BuildLabel(Transform parent, UsaMapLayout.RegionPoly poly)
+        private static TextMesh BuildLabel(Transform parent, UsaMapLayout.StatePoly poly)
         {
-            Vector3 c = UsaMapLayout.Centroid(poly.Id);
+            Vector2 c2 = UsaMapLayout.Centroid2(poly.Ring);
+            Vector3 c = new Vector3(c2.x, UsaMapLayout.RegionHeight + 0.1f, c2.y);
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(parent, false);
             labelGo.transform.position = c + Vector3.up * 0.08f;
-            // Face camera looking down -Y (ortho political map).
             labelGo.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
             var tm = labelGo.AddComponent<TextMesh>();
-            tm.text = poly.MapLabel;
-            tm.fontSize = 28;
-            tm.characterSize = 0.12f;
+            tm.text = poly.Code;
+            tm.fontSize = 24;
+            tm.characterSize = 0.055f;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
-            tm.color = new Color(0.95f, 0.93f, 0.88f, 0.85f);
+            tm.color = new Color(0.95f, 0.93f, 0.88f, 0.82f);
             tm.fontStyle = FontStyle.Bold;
+            return tm;
         }
 
         private void BuildCorridors()
@@ -217,12 +241,46 @@ namespace MinistryOfPower.UI.Map
                 lineGo.transform.SetParent(_corridorRoot, false);
                 var lr = lineGo.AddComponent<LineRenderer>();
                 lr.useWorldSpace = true;
-                lr.widthMultiplier = 0.14f;
-                lr.numCapVertices = 4;
+                lr.widthMultiplier = 0.07f;
+                lr.numCapVertices = 2;
                 lr.material = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Standard"));
                 lr.startColor = lr.endColor = c.Color;
                 lr.positionCount = 2;
                 lr.SetPositions(new[] { a, b });
+            }
+        }
+
+        private void RefreshLabels(bool force = false)
+        {
+            if (_labels == null) return;
+
+            Camera cam = Camera.main;
+            float ortho = cam != null && cam.orthographic ? cam.orthographicSize : UsaMapLayout.DefaultOrthoSize;
+            string selected = RegionMarker.SelectedStateCode ?? "";
+            bool fullNames = ortho <= UsaMapLayout.FullNameOrthoThreshold;
+
+            if (!force
+                && Mathf.Abs(ortho - _lastOrtho) < 0.05f
+                && selected == _lastSelectedState
+                && fullNames == _lastFullNames)
+                return;
+
+            _lastOrtho = ortho;
+            _lastSelectedState = selected;
+            _lastFullNames = fullNames;
+
+            for (int i = 0; i < _labels.Length; i++)
+            {
+                TextMesh tm = _labels[i];
+                if (tm == null) continue;
+
+                bool isSelected = !string.IsNullOrEmpty(selected) && selected == _labelCodes[i];
+                bool showFull = fullNames || isSelected;
+                tm.text = showFull ? _labelNames[i] : _labelCodes[i];
+                tm.characterSize = showFull ? 0.042f : 0.055f;
+                tm.color = isSelected
+                    ? new Color(1f, 0.95f, 0.7f, 0.95f)
+                    : new Color(0.95f, 0.93f, 0.88f, showFull ? 0.9f : 0.78f);
             }
         }
 
@@ -232,14 +290,14 @@ namespace MinistryOfPower.UI.Map
             Transform ocean = _root.Find("OceanBackdrop");
             if (ocean != null) ApplyColor(ocean.gameObject, UsaMapLayout.OceanFill(sunRichTint));
 
-            Transform regions = _root.Find("Regions");
-            if (regions == null) return;
-            for (int i = 0; i < regions.childCount; i++)
+            if (_statesRoot == null) _statesRoot = _root.Find("States");
+            if (_statesRoot == null) return;
+            for (int i = 0; i < _statesRoot.childCount; i++)
             {
-                var marker = regions.GetChild(i).GetComponent<RegionMarker>();
+                var marker = _statesRoot.GetChild(i).GetComponent<RegionMarker>();
                 if (marker == null) continue;
-                Color fill = UsaMapLayout.RegionFill(marker.RegionId, sunRichTint);
-                marker.Configure(marker.RegionId, fill);
+                Color fill = UsaMapLayout.StateFill(marker.StateCode, sunRichTint);
+                marker.Configure(marker.RegionId, marker.StateCode, marker.FullName, fill);
             }
         }
 

@@ -9,7 +9,11 @@ namespace MinistryOfPower.Simulation
         Desert = 2
     }
 
-    /// <summary>Grey-box regional map data for click panels + plant siting.</summary>
+    /// <summary>
+    /// Sim-facing regional data for click panels + plant siting.
+    /// Map presentation shows 50 states; each state belongs to one RegionId group
+    /// (North≈Midwest/Plains/Great Lakes, Coast≈Atlantic/Gulf SE, Desert≈Southwest/Mountain West).
+    /// </summary>
     public static class RegionCatalog
     {
         public static string DisplayName(RegionId id)

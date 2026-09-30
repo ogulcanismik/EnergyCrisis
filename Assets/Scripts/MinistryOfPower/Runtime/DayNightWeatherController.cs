@@ -44,7 +44,7 @@ namespace MinistryOfPower.Runtime
             }
 
             var region = hit.collider.GetComponentInParent<RegionMarker>();
-            if (region != null) RegionMarker.Select(region.RegionId);
+            if (region != null) RegionMarker.Select(region.RegionId, region.StateCode);
         }
 
         private static bool WasPrimaryClick()
