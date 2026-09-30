@@ -21,6 +21,7 @@ MonoBehaviour:
   leftRailWidth: 0.11
   leftDrawerMaxX: 0.4
   rightDrawerMinX: 0.78
+  chromeBottomHeight: 0.072
   reportChartHeight: 0.4
   hudBodyFontSize: 11
   hudTitleFontSize: 18

@@ -106,14 +106,22 @@ namespace MinistryOfPower.EditorTools
             var pause = FindRt(chrome, "P");
             var s1 = FindRt(chrome, "S1");
             var timeBar = FindRt(chrome, "TimeBar");
-            var reports = FindRt(chrome, "M_Reports");
-            var flyout = FindGo(chrome, "ReportsFlyout");
             var side = FindGo(chrome, "SidePanel");
-            var lobbyInfo = FindGo(chrome, "LobbyInfo");
             var filterToggle = FindGo(chrome, "FilterToggle");
             var dealBrief = FindGo(chrome, "DealBriefToggle");
-            var mandateRail = FindGo(chrome, "M_Mandate");
-            var budgetRail = FindGo(chrome, "M_Budget");
+            var escBtn = FindGo(chrome, "EscBtn");
+            var ordersPanel = FindGo(chrome, "OrdersPanel");
+            var chartMix = FindGo(chrome, "Chart_Mix");
+            var chartBudget = FindGo(chrome, "Chart_Budget");
+            var constructionRail = FindGo(chrome, "M_Construction");
+            var dealsRail = FindGo(chrome, "M_Deals");
+            var cabinetRail = FindGo(chrome, "M_Cabinet");
+            var subsidiesRail = FindGo(chrome, "M_Subsidies");
+            var legacyReports = FindGo(chrome, "M_Reports");
+            var legacyFlyout = FindGo(chrome, "ReportsFlyout");
+            var legacyLobby = FindGo(chrome, "LobbyInfo");
+            var legacyRightCab = FindGo(chrome, "RightDrawer");
+            var fatEmergency = FindGo(chrome, "EmergLabel");
             UguiMeshChart dispatchChart = null;
             if (chrome != null)
             {
@@ -129,12 +137,20 @@ namespace MinistryOfPower.EditorTools
 
             sb.Append("hud=").Append(true).AppendLine();
             sb.Append("date=").Append(date != null).Append(" tick=").Append(tick != null).AppendLine();
-            sb.Append("reportsBtn=").Append(reports != null).Append(" flyout=").Append(flyout != null).AppendLine();
-            sb.Append("lobbyInfo=").Append(lobbyInfo != null)
-                .Append(" filterToggle=").Append(filterToggle != null)
+            sb.Append("escBtn=").Append(escBtn != null).Append(" ordersPanel=").Append(ordersPanel != null).AppendLine();
+            sb.Append("chartMix=").Append(chartMix != null).Append(" chartBudget=").Append(chartBudget != null).AppendLine();
+            sb.Append("leftTabs=")
+                .Append(constructionRail != null).Append('/')
+                .Append(dealsRail != null).Append('/')
+                .Append(cabinetRail != null).Append('/')
+                .Append(subsidiesRail != null).AppendLine();
+            sb.Append("filterToggle=").Append(filterToggle != null)
                 .Append(" dealBrief=").Append(dealBrief != null).AppendLine();
-            sb.Append("legacyMandateRail=").Append(mandateRail != null)
-                .Append(" legacyBudgetRail=").Append(budgetRail != null).AppendLine();
+            sb.Append("legacyReports=").Append(legacyReports != null)
+                .Append(" legacyFlyout=").Append(legacyFlyout != null)
+                .Append(" legacyLobby=").Append(legacyLobby != null)
+                .Append(" legacyRightCab=").Append(legacyRightCab != null)
+                .Append(" fatEmergency=").Append(fatEmergency != null).AppendLine();
             sb.Append("meshChart=").Append(dispatchChart != null)
                 .Append(" dispatchActive=").Append(dispatchChart != null && dispatchChart.isActiveAndEnabled)
                 .AppendLine();
@@ -181,29 +197,26 @@ namespace MinistryOfPower.EditorTools
                 narrowOk = narrowOk && btnW <= 0.08f;
             }
 
-            // Exclusive menus: Construction open, then Reports flyout → Construction closes.
+            // Exclusive menus: Construction, then Budget chart drawer, then Construction again.
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
-            bool constructionOpen = side != null && side.activeInHierarchy;
-            // Simulate Reports toggle by opening Budget (reports family) after Construction via ForceOpen
-            // Exclusive: opening Reports flyout path — ForceOpen Budget should keep only reports surface.
+            bool constructionOpen = side != null && side.activeInHierarchy
+                                    && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Construction;
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Budget);
-            bool flyActive = flyout != null && flyout.activeInHierarchy;
             bool budgetPanel = side != null && side.activeInHierarchy
                                && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Budget;
-            sb.Append("reportsOpenOnBudget=").Append(flyActive)
-                .Append(" budgetPanel=").Append(budgetPanel).AppendLine();
-
-            // Re-open Construction: reports flyout must close (exclusive).
+            hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Cabinet);
+            bool cabinetPanel = side != null && side.activeInHierarchy
+                                && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Cabinet;
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
-            bool flyClosedOnConstruction = flyout == null || !flyout.activeInHierarchy;
-            bool constructionAgain = side != null && side.activeInHierarchy;
+            bool constructionAgain = side != null && side.activeInHierarchy
+                                     && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Construction;
             sb.Append("constructionOpen=").Append(constructionOpen)
-                .Append(" flyClosedOnConstruction=").Append(flyClosedOnConstruction)
+                .Append(" budgetPanel=").Append(budgetPanel)
+                .Append(" cabinetPanel=").Append(cabinetPanel)
                 .Append(" constructionAgain=").Append(constructionAgain).AppendLine();
 
-            bool exclusiveOk = flyActive && budgetPanel && flyClosedOnConstruction && constructionAgain;
+            bool exclusiveOk = constructionOpen && budgetPanel && cabinetPanel && constructionAgain;
 
-            // Chart live data: ensure dispatch strip rendered with session curves.
             bool chartLive = false;
             int curveLen = session?.DayDemandCurve != null ? session.DayDemandCurve.Length : 0;
             sb.Append("dayCurveLen=").Append(curveLen).AppendLine();
@@ -219,10 +232,15 @@ namespace MinistryOfPower.EditorTools
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
 
             bool ok = date != null && tick != null && pause != null && s1 != null
-                      && reports != null && flyout != null && lobbyInfo != null
+                      && escBtn != null && ordersPanel != null
+                      && chartMix != null && chartBudget != null
+                      && constructionRail != null && dealsRail != null
+                      && cabinetRail != null && subsidiesRail != null
                       && filterToggle != null && dealBrief != null
                       && stackOk && narrowOk && exclusiveOk && chartLive && dateVisible
-                      && mandateRail == null && budgetRail == null
+                      && legacyReports == null && legacyFlyout == null
+                      && legacyLobby == null && legacyRightCab == null
+                      && fatEmergency == null
                       && Mathf.Approximately(GameClock.SecondsPerDay1x, 168f);
             sb.AppendLine(ok ? "HUD_LAYOUT_OK=True" : "HUD_LAYOUT_OK=False");
             return sb.ToString();

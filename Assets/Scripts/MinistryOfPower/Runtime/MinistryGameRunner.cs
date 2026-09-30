@@ -200,6 +200,11 @@ namespace MinistryOfPower.Runtime
         {
             if (paradoxHud == null) return;
 
+            _pauseMenu = PauseMenuOverlay.Ensure(transform);
+            var uiMgr = FindFirstObjectByType<UIManager>();
+            if (uiMgr != null)
+                uiMgr.EnsurePauseMenu(transform);
+
             paradoxHud.Bind(
                 () => _session,
                 () => { _session.SetSpeed(GameSpeed.Paused); RefreshUi(); },
@@ -254,12 +259,9 @@ namespace MinistryOfPower.Runtime
                     PushLog(msg);
                     RefreshUi();
                 },
-                () => SceneManager.LoadScene("MainMenu"));
+                () => SceneManager.LoadScene("MainMenu"),
+                () => _pauseMenu?.Open());
 
-            _pauseMenu = PauseMenuOverlay.Ensure(transform);
-            var uiMgr = FindFirstObjectByType<UIManager>();
-            if (uiMgr != null)
-                uiMgr.EnsurePauseMenu(transform);
             _pauseMenu.Bind(
                 () => _session,
                 () =>

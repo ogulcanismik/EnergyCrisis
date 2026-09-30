@@ -43,9 +43,13 @@ namespace MinistryOfPower.Data
         [Range(0.28f, 0.55f)]
         public float leftDrawerMaxX = 0.40f;
 
-        [Tooltip("Left edge of the right cabinet/lobby drawer.")]
+        [Tooltip("Left edge of the right Orders drawer.")]
         [Range(0.70f, 0.88f)]
         public float rightDrawerMinX = 0.78f;
+
+        [Tooltip("Normalized height of the thin bottom charts/24h peek strip.")]
+        [Range(0.05f, 0.12f)]
+        public float chromeBottomHeight = 0.072f;
 
         [Header("UI — Charts & type")]
         [Tooltip("Normalized height band for report chart slots inside the left panel.")]

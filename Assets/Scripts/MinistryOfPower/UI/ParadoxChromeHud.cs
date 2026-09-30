@@ -10,8 +10,9 @@ using MinistryOfPower.Simulation;
 namespace MinistryOfPower.UI
 {
     /// <summary>
-    /// Grey-box Paradox shell (UI brief B): top metrics + one speed cluster,
-    /// left investment/policy drawer, right cabinet/lobby drawer, bottom 24h dispatch.
+    /// Wireframe HUD shell: top vitals + time/speeds, exclusive left tabs
+    /// (Construction / Deals / Cabinet / Subsidies), right ESC + Orders,
+    /// bottom-left charts buttons + thin 24h peek. Map lenses stubbed/omitted.
     /// </summary>
     public sealed class ParadoxChromeHud : MonoBehaviour
     {
@@ -38,23 +39,18 @@ namespace MinistryOfPower.UI
         private Text _panelTitle;
         private Text _panelBody;
         private Text _logText;
-        private Text _lobbyText;
-        private Text _lobbyDetailText;
-        private Text _cabinetSummaryText;
+        private Text _ordersBody;
+        private Text _ordersToggleLabel;
         private Text _seasonBannerText;
         private Text _tipText;
-        private Text _reportsToggleLabel;
         private Text _filterToggleLabel;
-        private Text _lobbyToggleLabel;
         private Text _dealBriefToggleLabel;
         private GameObject _tipBanner;
         private float _tipTimer;
         private GameObject _leftPanel;
-        private GameObject _reportsFlyout;
-        private GameObject _lobbyDetailHost;
         private GameObject _filterToggleGo;
         private GameObject _dealBriefToggleGo;
-        private GameObject _rightDrawer;
+        private GameObject _ordersPanel;
         private GameObject _eventModal;
         private Text _eventTitle;
         private Text _eventBody;
@@ -93,10 +89,9 @@ namespace MinistryOfPower.UI
         private readonly Dictionary<string, GameObject> _buildOrderBtns = new Dictionary<string, GameObject>(8);
         private MenuId _openMenu = MenuId.None;
         private BuildFilter _buildFilter = BuildFilter.All;
-        private bool _reportsOpen;
         private bool _buildFiltersOpen;
-        private bool _lobbyDetailOpen;
         private bool _dealBriefOpen;
+        private bool _ordersOpen = true;
         private Season? _lastSeason;
         private float _seasonBannerTimer;
         private RegionId? _openRegion;
@@ -118,6 +113,7 @@ namespace MinistryOfPower.UI
         private Action _onEmergencyImport;
         private Action _onPrivateReserve;
         private Action _onResign;
+        private Action _onSystemMenu;
 
         // Layout knobs from GameTuning (applied before EnsureUi builds chrome).
         private float _timeControlScale = 1f;
@@ -127,6 +123,7 @@ namespace MinistryOfPower.UI
         private float _leftDrawerMaxX = 0.40f;
         private float _rightDrawerMinX = 0.78f;
         private float _reportChartHeight = 0.40f;
+        private float _chromeBottom = 0.072f;
         private int _hudBodyFontSize = 11;
         private int _hudTitleFontSize = 18;
 
@@ -141,6 +138,7 @@ namespace MinistryOfPower.UI
             _leftDrawerMaxX = tuning.leftDrawerMaxX;
             _rightDrawerMinX = tuning.rightDrawerMinX;
             _reportChartHeight = tuning.reportChartHeight;
+            _chromeBottom = tuning.chromeBottomHeight;
             _hudBodyFontSize = tuning.hudBodyFontSize;
             _hudTitleFontSize = tuning.hudTitleFontSize;
             _reportCharts?.ApplyChartHeight(_reportChartHeight);
@@ -165,7 +163,7 @@ namespace MinistryOfPower.UI
             Action<string> onBuild, Action<string> onCancelBuild, Action<string> onRetire,
             Action<CrisisChoice> onCrisis, Action<CrisisChoice> onCabinet,
             Action onEmergencyImport, Action onPrivateReserve,
-            Action onResign)
+            Action onResign, Action onSystemMenu = null)
         {
             _session = session;
             _onPause = onPause;
@@ -182,6 +180,7 @@ namespace MinistryOfPower.UI
             _onEmergencyImport = onEmergencyImport;
             _onPrivateReserve = onPrivateReserve;
             _onResign = onResign;
+            _onSystemMenu = onSystemMenu;
             EnsureUi();
             MaybeShowFirstRunHelp();
         }
@@ -261,9 +260,6 @@ namespace MinistryOfPower.UI
         {
             EnsureUi();
             _openMenu = id;
-            if (IsReportsMenu(id)) _reportsOpen = true;
-            else if (IsPrimaryLeftMenu(id) || id == MenuId.None || id == MenuId.Cabinet)
-                _reportsOpen = false;
             if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
             if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
             Render();
@@ -390,13 +386,16 @@ namespace MinistryOfPower.UI
             MaybeAnnounceSeason(s);
             RefreshBuildCatalogTooltips(s);
 
-            _sb.Length = 0;
-            _sb.AppendLine("DESK LOG");
-            int start = Math.Max(0, _log.Count - 8);
-            for (int i = start; i < _log.Count; i++) _sb.AppendLine("· " + _log[i]);
-            _logText.text = _sb.ToString();
+            if (_logText != null)
+            {
+                _sb.Length = 0;
+                _sb.AppendLine("DESK LOG");
+                int start = Math.Max(0, _log.Count - 6);
+                for (int i = start; i < _log.Count; i++) _sb.AppendLine("· " + _log[i]);
+                _logText.text = _sb.ToString();
+            }
 
-            RefreshLobbyDrawer(s);
+            RefreshOrdersSummary(s);
             _strip?.Render(s);
 
             int day = s.Clock.AbsoluteDay;
@@ -461,39 +460,84 @@ namespace MinistryOfPower.UI
             }
         }
 
-        private void RefreshLobbyDrawer(GameSession s)
+        private void RefreshOrdersSummary(GameSession s)
         {
-            if (_lobbyText == null || s?.Cabinet == null) return;
+            if (_ordersPanel == null || _ordersBody == null || s == null) return;
+            _ordersPanel.SetActive(_ordersOpen);
+            if (_ordersToggleLabel != null)
+                _ordersToggleLabel.text = _ordersOpen ? "Orders ▴" : "Orders ▾";
+            if (!_ordersOpen) return;
+
+            _sb.Length = 0;
+            _sb.AppendLine("CONSTRUCTIONS");
+            bool anyBuild = false;
+            IReadOnlyList<BuildOrder> orders = s.Builds.Orders;
+            for (int i = 0; i < orders.Count; i++)
+            {
+                BuildOrder o = orders[i];
+                if (o.IsCancelled || o.IsComplete) continue;
+                anyBuild = true;
+                _sb.Append("· ").Append(o.DisplayName)
+                    .Append("  ").Append(o.QuartersRemaining).Append("q left");
+                if (o.PaymentMode == BuildPaymentMode.PerQuarter && o.QuarterlyCost > 0f)
+                    _sb.Append("  ").Append(DisplayUnits.MoneyPerQuarter(o.QuarterlyCost));
+                _sb.Append('\n');
+            }
+
+            if (!anyBuild) _sb.AppendLine("· None in progress");
+
+            _sb.AppendLine().AppendLine("DEADLINES / TIMED");
+            bool anyDeadline = false;
+            if (s.EmergencyImportDaysRemaining > 0)
+            {
+                anyDeadline = true;
+                _sb.Append("· Emerg. import  ").Append(s.EmergencyImportDaysRemaining).Append("d  ")
+                    .Append(DisplayUnits.Capacity(s.EmergencyImportMw)).Append('\n');
+            }
+
             CabinetState c = s.Cabinet;
-            float lobby = s.FossilLobby01 * 100f;
-            _lobbyText.text =
-                "LOBBY\n" +
-                "Fossil  " + Bar(lobby) + "  " + DisplayUnits.LobbyPts(lobby) + "\n" +
-                "Climate " + Bar(c.ClimateMandatePressure) + "  " + DisplayUnits.LobbyPts(c.ClimateMandatePressure) + "\n" +
-                "Indust. " + Bar(c.IndustryPressure) + "  " + DisplayUnits.LobbyPts(c.IndustryPressure) + "\n" +
-                "Bills   " + Bar(c.AffordabilityMandate) + "  " + DisplayUnits.LobbyPts(c.AffordabilityMandate);
-
-            if (_lobbyDetailText != null)
+            if (c != null && c.TariffFreezeActive && c.TariffFreezeDaysRemaining > 0)
             {
-                _lobbyDetailText.text =
-                    "Fossil lobby raises retire cost & bruises clean builds.\n" +
-                    "Climate pressure rises when transition stalls.\n" +
-                    "Industry wants firm MW and cheap fuel.\n" +
-                    "Lobby meters are points (0–100), not money.";
+                anyDeadline = true;
+                _sb.Append("· Tariff freeze  ").Append(c.TariffFreezeDaysRemaining).Append("d\n");
             }
 
-            if (_lobbyDetailHost != null) _lobbyDetailHost.SetActive(_lobbyDetailOpen);
-            if (_lobbyToggleLabel != null)
-                _lobbyToggleLabel.text = _lobbyDetailOpen ? "Lobby info ▴" : "Lobby info ▾";
-
-            if (_cabinetSummaryText != null)
+            if (c != null && c.EmergencyFossilActive && c.EmergencyFossilDaysRemaining > 0)
             {
-                _cabinetSummaryText.text =
-                    "CABINET\nPM confidence " + DisplayUnits.Points(c.PmConfidence, "0.0") + "\n" +
-                    "Mandate: " + c.ActiveMandate + "\n" +
-                    "Tariff freeze: " + (c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off") + "\n" +
-                    "Emerg. fossil: " + (c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off");
+                anyDeadline = true;
+                _sb.Append("· Emerg. fossil  ").Append(c.EmergencyFossilDaysRemaining).Append("d\n");
             }
+
+            DayModifiers mods = s.Modifiers;
+            if (mods != null)
+            {
+                if (mods.OilShockDaysRemaining > 0)
+                {
+                    anyDeadline = true;
+                    _sb.Append("· Oil shock  ").Append(mods.OilShockDaysRemaining).Append("d\n");
+                }
+
+                if (mods.HeatwaveDaysRemaining > 0)
+                {
+                    anyDeadline = true;
+                    _sb.Append("· Heatwave  ").Append(mods.HeatwaveDaysRemaining).Append("d\n");
+                }
+
+                if (mods.DroughtDaysRemaining > 0)
+                {
+                    anyDeadline = true;
+                    _sb.Append("· Drought  ").Append(mods.DroughtDaysRemaining).Append("d\n");
+                }
+
+                if (mods.ImportDisruptionDaysRemaining > 0)
+                {
+                    anyDeadline = true;
+                    _sb.Append("· Import cut  ").Append(mods.ImportDisruptionDaysRemaining).Append("d\n");
+                }
+            }
+
+            if (!anyDeadline) _sb.AppendLine("· No timed deals active");
+            _ordersBody.text = _sb.ToString();
         }
 
         private static string Bar(float value01to100)
@@ -555,7 +599,7 @@ namespace MinistryOfPower.UI
         private void RefreshSidePanel(GameSession s)
         {
             if (_leftPanel == null) return;
-            bool leftOpen = _openMenu != MenuId.None && _openMenu != MenuId.Cabinet;
+            bool leftOpen = _openMenu != MenuId.None;
             _leftPanel.SetActive(leftOpen);
 
             if (_buildActions != null) _buildActions.SetActive(_openMenu == MenuId.Construction);
@@ -570,13 +614,12 @@ namespace MinistryOfPower.UI
             if (_dealBriefToggleLabel != null)
                 _dealBriefToggleLabel.text = _dealBriefOpen ? "Deal briefing ▴" : "Deal briefing ▾";
             if (_policyActions != null) _policyActions.SetActive(_openMenu == MenuId.Policy);
-            if (_cabinetActions != null) _cabinetActions.SetActive(true); // always on right drawer
+            if (_cabinetActions != null) _cabinetActions.SetActive(_openMenu == MenuId.Cabinet);
 
-            SyncReportsFlyout();
+            SyncLeftDrawerLayout();
             LayoutPanelBodyForCharts(_openMenu == MenuId.Mandate || _openMenu == MenuId.Budget);
             _reportCharts?.ShowForMenu(_openMenu, s);
 
-            // Content texts: left panel for most menus; Cabinet uses same fields for smoke.
             switch (_openMenu)
             {
                 case MenuId.Construction:
@@ -592,13 +635,13 @@ namespace MinistryOfPower.UI
                     _panelBody.text = BuildResourcesText(s);
                     break;
                 case MenuId.Deals:
-                    _panelTitle.text = "INVESTMENT / DEALS";
+                    _panelTitle.text = "DEALS";
                     _panelBody.text = _dealBriefOpen
                         ? BuildDealsText(s)
-                        : "Infrastructure investment & procurement.\nOpen Deal briefing for costs & buffers.";
+                        : "Imports & private reserve deals.\nOpen Deal briefing for costs & buffers.";
                     break;
                 case MenuId.Policy:
-                    _panelTitle.text = "ENERGY POLICY";
+                    _panelTitle.text = "SUBSIDIES / PRICING";
                     _panelBody.text = BuildPolicyText(s);
                     break;
                 case MenuId.Mandate:
@@ -912,16 +955,20 @@ namespace MinistryOfPower.UI
         private static string BuildCabinetText(GameSession s)
         {
             CabinetState c = s.Cabinet;
-            return "PM Confidence " + DisplayUnits.Points(c.PmConfidence, "0.0") + "\n" +
-                   "Climate pressure " + DisplayUnits.Points(c.ClimateMandatePressure, "0.0") + "\n" +
-                   "Industry pressure " + DisplayUnits.Points(c.IndustryPressure, "0.0") + "\n" +
-                   "Affordability mandate " + DisplayUnits.Points(c.AffordabilityMandate, "0.0") + "\n\n" +
-                   "Mandate: " + c.ActiveMandate + "\n" +
-                   "Tariff freeze: " + (c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off") + "\n" +
-                   "Emergency fossil: " + (c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off") + "\n\n" +
-                   "Fill Reserve: stock fuels + adequacy.\n" +
-                   "RE Subsidy: transition + bills; lobby bruise.\n" +
-                   "Don't confuse motion with governance.";
+            float lobby = s.FossilLobby01 * 100f;
+            return
+                "PM Confidence " + DisplayUnits.Points(c.PmConfidence, "0.0") + "\n" +
+                "Mandate: " + c.ActiveMandate + "\n" +
+                "Tariff freeze: " + (c.TariffFreezeActive ? c.TariffFreezeDaysRemaining + "d" : "off") + "\n" +
+                "Emergency fossil: " + (c.EmergencyFossilActive ? c.EmergencyFossilDaysRemaining + "d" : "off") + "\n\n" +
+                "LOBBY\n" +
+                "Fossil  " + Bar(lobby) + "  " + DisplayUnits.LobbyPts(lobby) + "\n" +
+                "Climate " + Bar(c.ClimateMandatePressure) + "  " + DisplayUnits.LobbyPts(c.ClimateMandatePressure) + "\n" +
+                "Indust. " + Bar(c.IndustryPressure) + "  " + DisplayUnits.LobbyPts(c.IndustryPressure) + "\n" +
+                "Bills   " + Bar(c.AffordabilityMandate) + "  " + DisplayUnits.LobbyPts(c.AffordabilityMandate) + "\n\n" +
+                "Fossil lobby raises retire cost & bruises clean builds.\n" +
+                "Climate pressure rises when transition stalls.\n" +
+                "Industry wants firm MW and cheap fuel.";
         }
 
         private void RefreshBuildCatalogTooltips(GameSession s)
@@ -951,91 +998,28 @@ namespace MinistryOfPower.UI
             bool closing = _openMenu == id;
             _openMenu = closing ? MenuId.None : id;
 
-            if (IsReportsMenu(_openMenu))
-            {
-                // Report item owns the left drawer; keep flyout as its picker.
-                _reportsOpen = true;
-            }
-            else if (IsPrimaryLeftMenu(_openMenu))
-            {
-                // Construction / Policy / Investment close Reports entirely.
-                _reportsOpen = false;
-            }
-            else if (_openMenu == MenuId.None || _openMenu == MenuId.Cabinet)
-            {
-                _reportsOpen = false;
-            }
-
             if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
             if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
             _panelDirtyMenu = (MenuId)(-1); // force side-panel rebuild
             Render();
         }
 
-        private static bool IsReportsMenu(MenuId id)
+        private void SyncLeftDrawerLayout()
         {
-            return id == MenuId.EnergyMix || id == MenuId.Resources || id == MenuId.Mandate
-                   || id == MenuId.Budget || id == MenuId.History;
+            if (_leftPanel == null) return;
+            var rt = _leftPanel.GetComponent<RectTransform>();
+            if (rt == null) return;
+            float bot = _chromeBottom;
+            rt.anchorMin = new Vector2(_leftRailWidth, bot);
+            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.905f);
         }
 
-        private static bool IsPrimaryLeftMenu(MenuId id)
+        private void ToggleOrders()
         {
-            return id == MenuId.Construction || id == MenuId.Policy || id == MenuId.Deals;
-        }
-
-        private void ToggleReportsFlyout()
-        {
-            if (_reportsOpen)
-            {
-                _reportsOpen = false;
-                if (IsReportsMenu(_openMenu)) _openMenu = MenuId.None;
-            }
-            else
-            {
-                // Opening Reports closes other left drawers (exclusive).
-                if (!IsReportsMenu(_openMenu))
-                    _openMenu = MenuId.None;
-                _reportsOpen = true;
-                _buildFiltersOpen = false;
-                _dealBriefOpen = false;
-            }
-
-            _panelDirtyMenu = (MenuId)(-1);
-            Render();
-        }
-
-        private void SyncReportsFlyout()
-        {
-            // Exclusive: flyout never stacks beside Construction/Policy/Investment.
-            if (IsPrimaryLeftMenu(_openMenu))
-                _reportsOpen = false;
-
-            bool open = _reportsOpen || IsReportsMenu(_openMenu);
-            if (_reportsFlyout != null) _reportsFlyout.SetActive(open);
-            if (_reportsToggleLabel != null)
-                _reportsToggleLabel.text = open ? "Reports ▴" : "Reports ▾";
-
-            // Keep flyout readable: nudge the left content panel right while Reports is open.
-            if (_leftPanel != null)
-            {
-                var rt = _leftPanel.GetComponent<RectTransform>();
-                if (rt != null)
-                {
-                    float rail = _leftRailWidth;
-                    float leftMax = _leftDrawerMaxX;
-                    float flyoutRight = rail + 0.13f;
-                    if (open && _leftPanel.activeSelf)
-                    {
-                        rt.anchorMin = new Vector2(flyoutRight, 0.18f);
-                        rt.anchorMax = new Vector2(Mathf.Min(leftMax + 0.10f, 0.55f), 0.905f);
-                    }
-                    else
-                    {
-                        rt.anchorMin = new Vector2(rail, 0.18f);
-                        rt.anchorMax = new Vector2(leftMax, 0.905f);
-                    }
-                }
-            }
+            _ordersOpen = !_ordersOpen;
+            if (_ordersPanel != null) _ordersPanel.SetActive(_ordersOpen);
+            if (_ordersToggleLabel != null)
+                _ordersToggleLabel.text = _ordersOpen ? "Orders ▴" : "Orders ▾";
         }
 
         private void ToggleBuildFilters()
@@ -1043,14 +1027,6 @@ namespace MinistryOfPower.UI
             _buildFiltersOpen = !_buildFiltersOpen;
             _panelDirtyMenu = (MenuId)(-1);
             Render();
-        }
-
-        private void ToggleLobbyDetail()
-        {
-            _lobbyDetailOpen = !_lobbyDetailOpen;
-            if (_lobbyDetailHost != null) _lobbyDetailHost.SetActive(_lobbyDetailOpen);
-            if (_lobbyToggleLabel != null)
-                _lobbyToggleLabel.text = _lobbyDetailOpen ? "Lobby info ▴" : "Lobby info ▾";
         }
 
         private void ToggleDealBrief()
@@ -1099,6 +1075,9 @@ namespace MinistryOfPower.UI
             Color ink = UiFactory.Hex("1A140F");
             Color panel = UiFactory.Hex("241C14");
 
+            float scale = Mathf.Clamp(_timeControlScale, 0.6f, 1.4f);
+            float timeLeft = Mathf.Clamp(1f - 0.32f * scale, 0.65f, 0.76f);
+
             // ——— TOP BAR: brand + primary macros left; date/hour above speeds right ———
             UiFactory.Panel(canvasGo.transform, "TopBar", new Vector2(0f, 0.905f), new Vector2(1f, 1f), bar);
             UiFactory.Label(canvasGo.transform, "Brand", accent, 15, FontStyle.Bold,
@@ -1109,13 +1088,11 @@ namespace MinistryOfPower.UI
             _confidenceText = UiFactory.Label(canvasGo.transform, "Conf", paper, 13, FontStyle.Bold,
                 new Vector2(0.16f, 0.91f), new Vector2(0.28f, 0.955f));
             _marginText = UiFactory.Label(canvasGo.transform, "Margin", paper, 13, FontStyle.Bold,
-                new Vector2(0.28f, 0.91f), new Vector2(0.70f, 0.955f));
+                new Vector2(0.28f, 0.91f), new Vector2(Mathf.Max(0.45f, timeLeft - 0.01f), 0.955f));
 
             // Compact time cluster (right): date/hour/season ABOVE Pause/1x/2x/5x/Skip.
             // Scale widens/narrows the cluster, but the date row always keeps a readable span
             // (never collapse via timeControlScale — GameTuning must not hide the clock).
-            float scale = Mathf.Clamp(_timeControlScale, 0.6f, 1.4f);
-            float timeLeft = Mathf.Clamp(1f - 0.32f * scale, 0.65f, 0.76f);
             const float peakLeft = 0.895f;
             const float dateTop = 0.958f;
             const float dateBot = 0.995f;
@@ -1171,34 +1148,19 @@ namespace MinistryOfPower.UI
                 new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), TextAnchor.MiddleCenter);
             _tipBanner.SetActive(false);
 
-            // ——— LEFT RAIL: primary menus; secondary under Reports submenu ———
+            // ——— LEFT RAIL: exclusive tabs (Construction / Deals / Cabinet / Subsidies) ———
             float railW = _leftRailWidth;
             float leftMax = _leftDrawerMaxX;
-            UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, 0.18f), new Vector2(railW, 0.905f), bar);
+            float bot = Mathf.Clamp(_chromeBottom, 0.05f, 0.12f);
+            UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, bot), new Vector2(railW, 0.905f), bar);
             float ly = 0.88f;
             MenuBtn(canvasGo.transform, "Construction", MenuId.Construction, ref ly, "Queue, catalog, projections");
-            MenuBtn(canvasGo.transform, "Policy", MenuId.Policy, ref ly, "Subsidies, freezes, reserves");
-            MenuBtn(canvasGo.transform, "Investment", MenuId.Deals, ref ly, "Imports & private reserve");
-            var reportsBtn = UiFactory.Button(canvasGo.transform, "M_Reports", "Reports ▾",
-                new Vector2(0.01f, ly - 0.055f), new Vector2(railW - 0.005f, ly),
-                ToggleReportsFlyout, UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11,
-                "Budget, history, mandate, mix, resources");
-            _reportsToggleLabel = reportsBtn.GetComponentInChildren<Text>();
-            ly -= 0.065f;
-
-            var reportsFly = UiFactory.Panel(canvasGo.transform, "ReportsFlyout",
-                new Vector2(railW, 0.48f), new Vector2(railW + 0.13f, 0.88f), UiFactory.Hex("2B2118"));
-            _reportsFlyout = reportsFly.gameObject;
-            float ry = 0.92f;
-            FlyoutMenuBtn(reportsFly.transform, "Energy Mix", MenuId.EnergyMix, ref ry, "Live plant portfolio");
-            FlyoutMenuBtn(reportsFly.transform, "Resources", MenuId.Resources, ref ry, "Fuel stocks + market");
-            FlyoutMenuBtn(reportsFly.transform, "Mandate", MenuId.Mandate, ref ry, "Victory tracker");
-            FlyoutMenuBtn(reportsFly.transform, "Budget", MenuId.Budget, ref ry, "Quarter & YTD ledger");
-            FlyoutMenuBtn(reportsFly.transform, "History", MenuId.History, ref ry, "Past event cards");
-            _reportsFlyout.SetActive(false);
+            MenuBtn(canvasGo.transform, "Deals", MenuId.Deals, ref ly, "Imports & private reserve");
+            MenuBtn(canvasGo.transform, "Cabinet", MenuId.Cabinet, ref ly, "PM confidence, lobby, levers");
+            MenuBtn(canvasGo.transform, "Subsidies", MenuId.Policy, ref ly, "Subsidies, freezes, reserves");
 
             // Left content panel
-            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(railW, 0.18f), new Vector2(leftMax, 0.905f), panel);
+            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(railW, bot), new Vector2(leftMax, 0.905f), panel);
             _leftPanel = side.gameObject;
             _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, _hudTitleFontSize, FontStyle.Bold,
                 new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
@@ -1300,35 +1262,7 @@ namespace MinistryOfPower.UI
                 () => _onCabinet?.Invoke(CrisisChoice.EmergencyFossil), UiFactory.Hex("6B4E30"), paper, 12,
                 "Buy adequacy with treasury and transition.");
 
-            _buildActions.SetActive(false);
-            _dealActions.SetActive(false);
-            _policyActions.SetActive(false);
-            _leftPanel.SetActive(false);
-
-            // ——— RIGHT DRAWER: Cabinet + Lobby (deep lobby copy behind submenu) ———
-            var right = UiFactory.Panel(canvasGo.transform, "RightDrawer", new Vector2(_rightDrawerMinX, 0.18f), new Vector2(1f, 0.905f), panel);
-            _rightDrawer = right.gameObject;
-            UiFactory.Button(right.transform, "CabOpen", "Cabinet detail", new Vector2(0.08f, 0.94f), new Vector2(0.92f, 0.99f),
-                () => ToggleMenu(MenuId.Cabinet), UiFactory.Hex("3A2E22"), accent, 11, "Open cabinet briefing");
-            _lobbyText = UiFactory.Label(right.transform, "Lobby", paper, 11, FontStyle.Normal,
-                new Vector2(0.05f, 0.72f), new Vector2(0.95f, 0.93f), TextAnchor.UpperLeft);
-
-            var lobbyToggle = UiFactory.Button(right.transform, "LobbyInfo", "Lobby info ▾",
-                new Vector2(0.08f, 0.66f), new Vector2(0.92f, 0.71f),
-                ToggleLobbyDetail, UiFactory.Hex("3A2E22"), accent, 10, "How lobby meters affect options");
-            _lobbyToggleLabel = lobbyToggle.GetComponentInChildren<Text>();
-
-            var lobbyDetail = UiFactory.Panel(right.transform, "LobbyDetail",
-                new Vector2(0.04f, 0.50f), new Vector2(0.96f, 0.655f), UiFactory.Hex("1A1510"));
-            _lobbyDetailHost = lobbyDetail.gameObject;
-            _lobbyDetailText = UiFactory.Label(lobbyDetail.transform, "LobbyD", paper, 10, FontStyle.Normal,
-                new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f), TextAnchor.UpperLeft);
-            _lobbyDetailHost.SetActive(false);
-
-            _cabinetSummaryText = UiFactory.Label(right.transform, "CabSum", accent, 12, FontStyle.Bold,
-                new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.49f), TextAnchor.UpperLeft);
-
-            var cabHost = UiFactory.Panel(right.transform, "CabinetActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
+            var cabHost = UiFactory.Panel(side.transform, "CabinetActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
             _cabinetActions = cabHost.gameObject;
             UiFactory.Button(cabHost.transform, "CabFos", "Emerg. Fossil", new Vector2(0.04f, 0.52f), new Vector2(0.48f, 0.95f),
                 () => _onCabinet?.Invoke(CrisisChoice.EmergencyFossil), UiFactory.Hex("6B4E30"), paper, 11,
@@ -1343,24 +1277,61 @@ namespace MinistryOfPower.UI
                 () => _onCabinet?.Invoke(CrisisChoice.RenewableSubsidy), UiFactory.Hex("2E4A3A"), paper, 11,
                 "Pay for transition + bill relief; lobby bruises confidence.");
 
-            // Compact log under right drawer? Keep thin log strip above bottom.
-            UiFactory.Panel(canvasGo.transform, "LogPanel", new Vector2(0.42f, 0.18f), new Vector2(0.78f, 0.30f), UiFactory.Hex("1A1510"));
-            _logText = UiFactory.Label(canvasGo.transform, "Log", UiFactory.Hex("D2C3A8"), 11, FontStyle.Normal,
-                new Vector2(0.425f, 0.185f), new Vector2(0.775f, 0.295f), TextAnchor.UpperLeft);
+            _buildActions.SetActive(false);
+            _dealActions.SetActive(false);
+            _policyActions.SetActive(false);
+            _cabinetActions.SetActive(false);
+            _leftPanel.SetActive(false);
 
-            // ——— BOTTOM: 24h curve + emergency strip ———
-            UiFactory.Panel(canvasGo.transform, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0.18f), bar);
-            _strip = SupplyDemandStrip.Create(canvasGo.transform, new Vector2(0.01f, 0.01f), new Vector2(0.72f, 0.17f));
+            // ——— RIGHT: ESC system + collapsible Orders summary ———
+            UiFactory.Button(canvasGo.transform, "EscBtn", "ESC",
+                new Vector2(0.955f, 0.86f), new Vector2(0.995f, 0.90f),
+                () => _onSystemMenu?.Invoke(), UiFactory.Hex("6B3030"), paper, 11,
+                "System menu — save / load / settings / resign");
 
-            UiFactory.Label(canvasGo.transform, "EmergLabel", accent, 11, FontStyle.Bold,
-                new Vector2(0.73f, 0.14f), new Vector2(0.99f, 0.175f), TextAnchor.MiddleCenter).text = "EMERGENCY";
-            UiFactory.Button(canvasGo.transform, "EmShed", "Load Shed*", new Vector2(0.73f, 0.095f), new Vector2(0.99f, 0.135f),
-                () => ShowTip("Load-shed choices appear on crisis cards when adequacy threatens. Use crisis modal options."),
-                UiFactory.Hex("5C4A3E"), paper, 11, "Load-shed is offered on crisis cards when available.");
-            UiFactory.Button(canvasGo.transform, "EmImp", "E-Import", new Vector2(0.73f, 0.05f), new Vector2(0.99f, 0.09f),
-                () => _onEmergencyImport?.Invoke(), UiFactory.Hex("30506B"), paper, 11, "Buy emergency import buffer.");
-            UiFactory.Button(canvasGo.transform, "EmRes", "Reserve", new Vector2(0.73f, 0.005f), new Vector2(0.99f, 0.045f),
-                () => _onPrivateReserve?.Invoke(), UiFactory.Hex("3E5C3A"), paper, 11, "Sign private reserve MW.");
+            var ordersToggle = UiFactory.Button(canvasGo.transform, "OrdersToggle", "Orders ▴",
+                new Vector2(_rightDrawerMinX, 0.86f), new Vector2(0.95f, 0.90f),
+                ToggleOrders, UiFactory.Hex("3A2E22"), accent, 11, "Build queue + timed deadlines");
+            _ordersToggleLabel = ordersToggle.GetComponentInChildren<Text>();
+
+            var orders = UiFactory.Panel(canvasGo.transform, "OrdersPanel",
+                new Vector2(_rightDrawerMinX, bot), new Vector2(1f, 0.855f), panel);
+            _ordersPanel = orders.gameObject;
+            _ordersBody = UiFactory.Label(orders.transform, "OrdersBody", paper, _hudBodyFontSize, FontStyle.Normal,
+                new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.96f), TextAnchor.UpperLeft);
+            _ordersPanel.SetActive(_ordersOpen);
+
+            // Thin event log tucked under the map (not a fat chrome slab).
+            UiFactory.Panel(canvasGo.transform, "LogPanel", new Vector2(0.42f, bot), new Vector2(0.70f, bot + 0.09f), UiFactory.Hex("1A1510"));
+            _logText = UiFactory.Label(canvasGo.transform, "Log", UiFactory.Hex("D2C3A8"), 10, FontStyle.Normal,
+                new Vector2(0.425f, bot + 0.005f), new Vector2(0.695f, bot + 0.085f), TextAnchor.UpperLeft);
+
+            // ——— BOTTOM-LEFT: Charts buttons + thin 24h peek ———
+            UiFactory.Panel(canvasGo.transform, "Bottom", new Vector2(0f, 0f), new Vector2(1f, bot), bar);
+            float chartY0 = 0.005f;
+            float chartY1 = bot - 0.008f;
+            float cx = 0.01f;
+            float cw = 0.07f;
+            ChartBtn(canvasGo.transform, "Mix", MenuId.EnergyMix, ref cx, cw, chartY0, chartY1, "Energy mix");
+            ChartBtn(canvasGo.transform, "Fuel", MenuId.Resources, ref cx, cw, chartY0, chartY1, "Fuel stocks");
+            ChartBtn(canvasGo.transform, "Mandate", MenuId.Mandate, ref cx, cw, chartY0, chartY1, "Mandate tracker");
+            ChartBtn(canvasGo.transform, "Budget", MenuId.Budget, ref cx, cw, chartY0, chartY1, "Budget ledger");
+            ChartBtn(canvasGo.transform, "History", MenuId.History, ref cx, cw, chartY0, chartY1, "Event history");
+
+            _strip = SupplyDemandStrip.Create(canvasGo.transform,
+                new Vector2(cx + 0.01f, 0.004f), new Vector2(0.72f, bot - 0.004f));
+
+            // ——— BOTTOM-RIGHT: map lens placeholders (no logic) ———
+            var lensWind = UiFactory.Button(canvasGo.transform, "LensWind", "Wind",
+                new Vector2(0.74f, 0.01f), new Vector2(0.86f, bot - 0.01f),
+                () => ShowTip("Map lenses deferred — wind overlay not implemented yet."),
+                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 10, "Placeholder — map lenses later");
+            lensWind.interactable = false;
+            var lensLog = UiFactory.Button(canvasGo.transform, "LensLogistics", "Logistics",
+                new Vector2(0.87f, 0.01f), new Vector2(0.99f, bot - 0.01f),
+                () => ShowTip("Map lenses deferred — logistics paths not implemented yet."),
+                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 10, "Placeholder — map lenses later");
+            lensLog.interactable = false;
 
             // Region / plant / confirm / year / event / end / help (unchanged spirit)
             var reg = UiFactory.Panel(canvasGo.transform, "RegionPanel", new Vector2(0.42f, 0.55f), new Vector2(0.70f, 0.84f), UiFactory.Hex("1A1510EE"));
@@ -1470,16 +1441,15 @@ namespace MinistryOfPower.UI
                 new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.96f), TextAnchor.MiddleCenter).text = "MINISTER'S BRIEF";
             UiFactory.Label(help.transform, "HB", paper, 13, FontStyle.Normal,
                 new Vector2(0.06f, 0.2f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft).text =
-                "Paradox desk shell — one HUD, exclusive left tabs.\n\n" +
-                "· Top: treasury / conf / margin · compact date+hour above Pause/1x/2x/5x.\n" +
-                "· Left: Construction / Policy / Investment · Reports submenu (one at a time).\n" +
-                "· ESC: pause menu — Save / Load / Settings / Resign.\n" +
-                "· F5: silent Quick Save to slot 1 (also autosaves every 30 days).\n" +
-                "· Right: Lobby meters (+ info submenu) · Cabinet levers.\n" +
-                "· Bottom: 24h load/supply chart + emergency import/reserve.\n" +
-                "· Map center: USA grey-box regions, plants, transmission lines.\n" +
-                "· Left-click regions/plants · hold right-mouse to pan · scroll to zoom.\n" +
-                "· Crisis modals for adequacy trade-offs.";
+                "Wireframe desk shell — map first, exclusive left tabs.\n\n" +
+                "· Top-left: treasury / conf / margin.\n" +
+                "· Top-right: date + hour/season/peak above Pause/1x/2x/5x/Skip.\n" +
+                "· Left: Construction / Deals / Cabinet / Subsidies (one at a time).\n" +
+                "· Right: ESC system menu · Orders summary (builds + deadlines).\n" +
+                "· Bottom-left: Charts buttons open report drawers · thin 24h peek.\n" +
+                "· Bottom-right: map lenses placeholder (later).\n" +
+                "· ESC / ESC button: pause — Save / Load / Settings / Resign.\n" +
+                "· F5: Quick Save · map: LMB select · RMB pan · scroll zoom.";
             UiFactory.Button(help.transform, "HelpOk", "Got it — open the desk",
                 new Vector2(0.25f, 0.05f), new Vector2(0.75f, 0.16f),
                 DismissHelp, UiFactory.Hex("8B6914"), paper, 16);
@@ -1508,13 +1478,12 @@ namespace MinistryOfPower.UI
             y -= h + 0.01f;
         }
 
-        private void FlyoutMenuBtn(Transform parent, string label, MenuId id, ref float y, string tip = null)
+        private void ChartBtn(Transform parent, string label, MenuId id, ref float x, float w, float y0, float y1, string tip)
         {
-            float h = 0.14f;
-            UiFactory.Button(parent, "RF_" + label, label,
-                new Vector2(0.06f, y - h), new Vector2(0.94f, y),
-                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11, tip);
-            y -= h + 0.02f;
+            UiFactory.Button(parent, "Chart_" + label, label,
+                new Vector2(x, y0), new Vector2(x + w - 0.005f, y1),
+                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 10, tip);
+            x += w;
         }
     }
 }
