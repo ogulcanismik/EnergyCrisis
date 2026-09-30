@@ -25,16 +25,15 @@ namespace MinistryOfPower.Runtime
         [SerializeField] private bool autoStart = true;
 
         private readonly GameSession _session = new GameSession();
-        private float _dayAccumulator;
-        private readonly List<string> _logLines = new List<string>(48);
+        private float _hourAccumulator;
         private bool _eventsWired;
         private int _lastAutosaveDay = -1;
+        private int _lastRenderedHour = -1;
 
         public GameSession Session => _session;
 
         private void Awake()
         {
-            // Guard against stale runtime leftover from the deleted diegetic desk.
             Transform leftover = transform.Find("MinistryDeskCanvas");
             if (leftover != null)
             {
@@ -81,37 +80,58 @@ namespace MinistryOfPower.Runtime
                 return;
             }
 
+            // Pause must fully halt the clock (no hour creep).
             if (_session.Clock.IsPaused)
             {
                 return;
             }
 
-            float secondsPerDay = GameClock.SecondsPerDay(_session.Clock.Speed);
-            _dayAccumulator += Time.unscaledDeltaTime;
+            float secondsPerHour = GameClock.SecondsPerHour(_session.Clock.Speed);
+            if (secondsPerHour <= 0f || float.IsInfinity(secondsPerHour)) return;
 
-            while (_dayAccumulator >= secondsPerDay)
+            _hourAccumulator += Time.unscaledDeltaTime;
+            bool dayRolled = false;
+
+            while (_hourAccumulator >= secondsPerHour)
             {
-                _dayAccumulator -= secondsPerDay;
-                _session.AdvanceDay();
-                MaybeAutosave();
-                RefreshUi();
+                _hourAccumulator -= secondsPerHour;
+                float nextFrac = _session.Clock.DayFraction + (1f / GameClock.HoursPerDay);
+
+                if (nextFrac >= 1f)
+                {
+                    _session.AdvanceDay();
+                    MaybeAutosave();
+                    nextFrac -= 1f;
+                    dayRolled = true;
+                }
+
+                ApplyDayFraction(nextFrac);
             }
 
-            float visualFrac = Mathf.Repeat(0.32f + (_dayAccumulator / secondsPerDay), 1f);
-            _session.Clock.Restore(
-                _session.Clock.Year,
-                _session.Clock.AbsoluteDay,
-                _session.Clock.DayIndex,
-                _session.Clock.QuarterIndex,
-                visualFrac,
-                _session.Clock.Speed);
+            int hour = (int)(_session.Clock.DayFraction * GameClock.HoursPerDay);
+            if (dayRolled)
+            {
+                RefreshUi();
+                _lastRenderedHour = hour;
+            }
+            else if (hour != _lastRenderedHour)
+            {
+                _lastRenderedHour = hour;
+                paradoxHud?.RefreshTimeChrome();
+            }
+        }
+
+        private void ApplyDayFraction(float dayFraction)
+        {
+            GameClock c = _session.Clock;
+            c.Restore(c.Year, c.AbsoluteDay, c.DayIndex, c.QuarterIndex, dayFraction, c.Speed);
         }
 
         public void StepOneDay()
         {
             if (_session.AwaitingCrisisDecision || _session.IsGameOver) return;
             _session.SetSpeed(GameSpeed.Paused);
-            _dayAccumulator = 0f;
+            _hourAccumulator = 0f;
             _session.AdvanceDay();
             MaybeAutosave();
             RefreshUi();
@@ -266,30 +286,27 @@ namespace MinistryOfPower.Runtime
             if (startingScenario != null && (scenarioId == startingScenario.Id || scenarioId == "usa_like"))
             {
                 var fromAsset = startingScenario.ToConfig();
-                var assetBuilds = startingScenario.ToBuildConfigs();
                 if (fromAsset.Id == scenarioId || scenarioId == "usa_like")
                 {
-                    config = fromAsset;
-                    // D1: never replace 10-build factory catalog with a partial SO list.
-                    builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
+                    config = MergeScenarioParity(config, fromAsset);
+                    builds = CatalogMerge.Merge(startingScenario.ToBuildConfigs(), builds);
                 }
             }
 
             if (alternateScenario != null && scenarioId == alternateScenario.Id)
             {
-                config = alternateScenario.ToConfig();
-                var assetBuilds = alternateScenario.ToBuildConfigs();
-                builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
+                config = MergeScenarioParity(config, alternateScenario.ToConfig());
+                builds = CatalogMerge.Merge(alternateScenario.ToBuildConfigs(), builds);
             }
 
-            if (builds.Count < 5)
+            if (builds == null || builds.Count < 5)
             {
                 builds = PrototypeContentFactory.CreateFullCatalog();
             }
 
-            _logLines.Clear();
-            _dayAccumulator = 0f;
+            _hourAccumulator = 0f;
             _lastAutosaveDay = -1;
+            _lastRenderedHour = -1;
             _session.Start(config, builds, DifficultyConfig.Create(difficulty));
             GameSpeed startSpeed = GameSettings.DefaultSpeed;
             if (startSpeed == GameSpeed.Paused) startSpeed = GameSpeed.Normal;
@@ -297,7 +314,25 @@ namespace MinistryOfPower.Runtime
             PushLog($"Difficulty {_session.Difficulty.DisplayName}: {_session.Difficulty.Blurb}");
             PushLog($"Event frequency ×{_session.Difficulty.EventFrequencyMultiplier:0.00} · treasury {_session.Budget:0}");
             paradoxHud?.HideEvent();
+            paradoxHud?.InvalidateTooltipCache();
             RefreshUi();
+        }
+
+        /// <summary>
+        /// SO config wins authored numbers; factory fills LobbyRetire / blurb / campaign years when SO left defaults.
+        /// </summary>
+        private static ScenarioConfig MergeScenarioParity(ScenarioConfig factory, ScenarioConfig so)
+        {
+            if (so == null) return factory;
+            if (factory == null) return so;
+
+            if (string.IsNullOrEmpty(so.DifferentiationBlurb))
+                so.DifferentiationBlurb = factory.DifferentiationBlurb;
+            if (Mathf.Abs(so.LobbyRetireMultiplier - 1f) < 0.001f && Mathf.Abs(factory.LobbyRetireMultiplier - 1f) > 0.001f)
+                so.LobbyRetireMultiplier = factory.LobbyRetireMultiplier;
+            if (so.CampaignYears <= 0)
+                so.CampaignYears = factory.CampaignYears > 0 ? factory.CampaignYears : MandateTracker.DefaultCampaignYears;
+            return so;
         }
 
         public void LoadFromSlot(int slot)
@@ -313,17 +348,18 @@ namespace MinistryOfPower.Runtime
             if (builds.Count < 5) builds = PrototypeContentFactory.CreateFullCatalog();
             _session.LoadFromSave(data, builds);
             _session.SetSpeed(GameSpeed.Paused);
-            _dayAccumulator = 0f;
+            _hourAccumulator = 0f;
+            _lastRenderedHour = -1;
             _lastAutosaveDay = _session.Clock != null ? _session.Clock.AbsoluteDay : -1;
             PushLog(message);
             paradoxHud?.HideEvent();
+            paradoxHud?.InvalidateTooltipCache();
             RefreshUi();
         }
 
         private void PushLog(string line)
         {
-            _logLines.Add(line);
-            if (_logLines.Count > 40) _logLines.RemoveAt(0);
+            // Single log owner: ParadoxChromeHud (UI audit P1-3).
             paradoxHud?.PushLog(line);
         }
 

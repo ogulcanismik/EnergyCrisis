@@ -89,6 +89,12 @@ namespace MinistryOfPower.UI
         private RegionId? _openRegion;
         private readonly StringBuilder _sb = new StringBuilder(2048);
         private readonly List<string> _log = new List<string>(48);
+        private int _tooltipBudgetKey = int.MinValue;
+        private int _tooltipMarginKey = int.MinValue;
+        private int _tooltipCatalogKey = int.MinValue;
+        private int _panelDirtyDay = int.MinValue;
+        private MenuId _panelDirtyMenu = (MenuId)(-1);
+        private bool _staticTipsAttached;
 
         private Action _onPause, _onSlow, _onNormal, _onFast, _onVeryFast, _onStep;
         private Action<string> _onBuild;
@@ -148,6 +154,30 @@ namespace MinistryOfPower.UI
         {
             _log.Add(line);
             if (_log.Count > 40) _log.RemoveAt(0);
+        }
+
+        public void InvalidateTooltipCache()
+        {
+            _tooltipBudgetKey = int.MinValue;
+            _tooltipMarginKey = int.MinValue;
+            _tooltipCatalogKey = int.MinValue;
+            _panelDirtyDay = int.MinValue;
+        }
+
+        /// <summary>Lightweight top-bar time/peak refresh for hourly playhead ticks.</summary>
+        public void RefreshTimeChrome()
+        {
+            EnsureUi();
+            GameSession s = _session?.Invoke();
+            if (s?.Clock == null || _dateTimeText == null) return;
+
+            float hour = s.Clock.DayFraction * 24f;
+            bool peak = (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
+            _dateTimeText.text = $"{s.Clock.FormatDate()}  {s.Clock.FormatTimeOfDay()}  ·  {s.Clock.CurrentSeason}";
+            _tickText.text = peak ? "PEAK" : "OFF-PEAK";
+            _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
+            _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
+            _strip?.Render(s);
         }
 
         public void ShowEvent(PendingEvent evt)
@@ -287,22 +317,36 @@ namespace MinistryOfPower.UI
             _tickText.color = peak ? UiFactory.Hex("C45A5A") : UiFactory.Hex("6BA36A");
 
             _treasuryText.text = $"Treasury  {s.Budget:0.0}";
-            UiFactory.AttachTooltip(_treasuryText.gameObject,
-                s.Difficulty != null ? s.Difficulty.FormatSummary(s.Scenario.StartingBudget) : "Cash on hand");
+            int budgetKey = (int)(s.Budget * 10f) ^ (s.Difficulty != null ? (int)s.Difficulty.Id : 0);
+            if (budgetKey != _tooltipBudgetKey)
+            {
+                _tooltipBudgetKey = budgetKey;
+                UiFactory.AttachTooltip(_treasuryText.gameObject,
+                    s.Difficulty != null ? s.Difficulty.FormatSummary(s.Scenario.StartingBudget) : "Cash on hand");
+            }
 
             // Political capital maps to seat Confidence until a distinct PC meter exists.
             _confidenceText.text = $"Conf  {m.Confidence:0}";
-            UiFactory.AttachTooltip(_confidenceText.gameObject,
-                "Seat confidence (political capital proxy).\nAdeq/Aff/Trans feed this meter.\nLobby retirements and crises sting it.");
+            if (!_staticTipsAttached)
+            {
+                UiFactory.AttachTooltip(_confidenceText.gameObject,
+                    "Seat confidence (political capital proxy).\nAdeq/Aff/Trans feed this meter.\nLobby retirements and crises sting it.");
+                _staticTipsAttached = true;
+            }
 
             float margin = s.LastReport.DemandMw > 0f
                 ? s.LastReport.SupplyMw - s.LastReport.DemandMw
                 : 0f;
             _marginText.text = $"Margin  {margin:+0;-0;0} MW";
             _marginText.color = margin < 0f ? UiFactory.Hex("C45A5A") : margin < 40f ? UiFactory.Hex("C4A35A") : UiFactory.Hex("6BA36A");
-            UiFactory.AttachTooltip(_marginText.gameObject,
-                $"Global grid margin\nSupply {s.LastReport.SupplyMw:0} − Demand {s.LastReport.DemandMw:0} MW\n" +
-                $"Adeq {m.Adequacy:0} · Aff {m.Affordability:0} · Trans {m.Transition:0}");
+            int marginKey = (int)margin ^ (s.Clock.AbsoluteDay * 17) ^ ((int)m.Adequacy << 8);
+            if (marginKey != _tooltipMarginKey)
+            {
+                _tooltipMarginKey = marginKey;
+                UiFactory.AttachTooltip(_marginText.gameObject,
+                    $"Global grid margin\nSupply {s.LastReport.SupplyMw:0} − Demand {s.LastReport.DemandMw:0} MW\n" +
+                    $"Adeq {m.Adequacy:0} · Aff {m.Affordability:0} · Trans {m.Transition:0}");
+            }
 
             _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "VICTORY" : MapSpeedLabel(s.Clock.Speed);
 
@@ -317,7 +361,20 @@ namespace MinistryOfPower.UI
 
             RefreshLobbyDrawer(s);
             _strip?.Render(s);
-            RefreshSidePanel(s);
+
+            int day = s.Clock.AbsoluteDay;
+            if (_openMenu != _panelDirtyMenu || day != _panelDirtyDay)
+            {
+                _panelDirtyMenu = _openMenu;
+                _panelDirtyDay = day;
+                RefreshSidePanel(s);
+            }
+            else if (_openMenu != MenuId.None)
+            {
+                // Still refresh open construction queue buttons cheaply.
+                if (_openMenu == MenuId.Construction) RefreshQueueCancelButtons(s);
+            }
+
             RefreshQueueCancelButtons(s);
             RefreshRegionPanel(s);
             RefreshPlantPanel(s);
@@ -736,6 +793,15 @@ namespace MinistryOfPower.UI
         {
             if (s?.BuildCatalog == null || _buildOrderBtns.Count == 0) return;
             IReadOnlyList<BuildDefinitionConfig> cat = s.BuildCatalog;
+            int key = cat.Count * 397;
+            for (int i = 0; i < cat.Count; i++)
+            {
+                if (cat[i] != null) key ^= cat[i].Id != null ? cat[i].Id.GetHashCode() : i;
+            }
+
+            if (key == _tooltipCatalogKey) return;
+            _tooltipCatalogKey = key;
+
             for (int i = 0; i < cat.Count; i++)
             {
                 BuildDefinitionConfig b = cat[i];
@@ -747,6 +813,7 @@ namespace MinistryOfPower.UI
         private void ToggleMenu(MenuId id)
         {
             _openMenu = _openMenu == id ? MenuId.None : id;
+            _panelDirtyMenu = (MenuId)(-1); // force side-panel rebuild
             Render();
         }
 
@@ -812,13 +879,13 @@ namespace MinistryOfPower.UI
             UiFactory.Button(canvasGo.transform, "P", "❚❚", new Vector2(0.66f, 0.915f), new Vector2(0.72f, 0.99f),
                 () => _onPause?.Invoke(), accent, ink, 12, "Pause");
             UiFactory.Button(canvasGo.transform, "S1", "1x", new Vector2(0.72f, 0.915f), new Vector2(0.78f, 0.99f),
-                () => _onNormal?.Invoke(), accent, ink, 12, "1× normal");
+                () => _onNormal?.Invoke(), accent, ink, 12, "1× · ~2.8 min/day");
             UiFactory.Button(canvasGo.transform, "S2", "2x", new Vector2(0.78f, 0.915f), new Vector2(0.84f, 0.99f),
-                () => _onFast?.Invoke(), accent, ink, 12, "2× fast");
+                () => _onFast?.Invoke(), accent, ink, 12, "2× · ~84s/day");
             UiFactory.Button(canvasGo.transform, "S5", "5x", new Vector2(0.84f, 0.915f), new Vector2(0.90f, 0.99f),
-                () => _onVeryFast?.Invoke(), accent, ink, 12, "5× very fast");
-            UiFactory.Button(canvasGo.transform, "D1", "+Day", new Vector2(0.90f, 0.915f), new Vector2(0.99f, 0.99f),
-                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 12, "Advance one day");
+                () => _onVeryFast?.Invoke(), accent, ink, 12, "5× · ~34s/day");
+            UiFactory.Button(canvasGo.transform, "D1", "Skip", new Vector2(0.90f, 0.915f), new Vector2(0.99f, 0.99f),
+                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 12, "Skip +1 day (not a speed)");
 
             var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;

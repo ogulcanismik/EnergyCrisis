@@ -78,6 +78,7 @@ namespace MinistryOfPower.UI
             if (go == null || string.IsNullOrEmpty(tooltip)) return;
             var tip = go.GetComponent<HoverTooltip>();
             if (tip == null) tip = go.AddComponent<HoverTooltip>();
+            if (tip.Tip == tooltip) return;
             tip.SetTip(tooltip);
         }
 

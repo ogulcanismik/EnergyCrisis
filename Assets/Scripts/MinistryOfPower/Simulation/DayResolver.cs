@@ -29,6 +29,7 @@ namespace MinistryOfPower.Simulation
             };
         }
 
+        /// <param name="visualWeather">Single day weather kind sampled once by GameSession (HUD + resolve share it).</param>
         public static DayReport Resolve(
             GameClock clock,
             PlantPortfolio portfolio,
@@ -40,14 +41,15 @@ namespace MinistryOfPower.Simulation
             float budget,
             SeatMeters previous,
             float fossilLobbyStrength,
+            WeatherKind visualWeather,
             DeterministicRng rng)
         {
             WeatherSample weather = SampleWeather(clock.AbsoluteDay, solarResource, windResource, rng);
-            ApplyVisualWeatherToSample(ref weather, SampleWeatherKindForDay(clock, rng));
+            ApplyVisualWeatherToSample(ref weather, visualWeather);
 
             float hydroFactor = weather.Hydro * (modifiers != null ? modifiers.HydroFactorMul : 1f);
             float demandMul = weather.DemandMultiplier * (modifiers != null ? modifiers.DemandFactorMul : 1f);
-            float oilMul = modifiers != null ? modifiers.OilShockMultiplier : 1f;
+            // Oil shock lives in FuelMarket indices only — do not multiply blend again (S1).
             float importMw = modifiers != null ? modifiers.ImportMwAvailable : 0f;
             float extraFirm = modifiers != null ? modifiers.ExtraFirmMw : 0f;
 
@@ -57,7 +59,9 @@ namespace MinistryOfPower.Simulation
             float adequacyRaw = demand <= 0.01f ? 100f : (supply / demand) * 100f;
             float adequacy = SeatMeters.Clamp(Lerp(previous.Adequacy, adequacyRaw, 0.55f));
 
-            float marginal = portfolio.EstimateMarginalCost(fuelPriceIndex * oilMul, oilMul);
+            // Merit-order edge cost; oil exposure multiplier = 1 (market already embeds shock).
+            float marginal = portfolio.EstimateMarginalCost(
+                fuelPriceIndex, 1f, demand, weather.Solar, weather.Wind, hydroFactor);
             float affordRaw = SeatMeters.Clamp(130f - marginal);
             float affordability = SeatMeters.Clamp(Lerp(previous.Affordability, affordRaw, 0.4f));
 
@@ -76,7 +80,7 @@ namespace MinistryOfPower.Simulation
                 DateLabel = clock.FormatDate(),
                 DemandMw = demand,
                 SupplyMw = supply,
-                FuelPriceIndex = fuelPriceIndex * oilMul,
+                FuelPriceIndex = fuelPriceIndex,
                 SolarFactor = weather.Solar,
                 WindFactor = weather.Wind,
                 HydroFactor = hydroFactor,
@@ -184,29 +188,6 @@ namespace MinistryOfPower.Simulation
         }
 
         private static float SinApprox(float x) => (float)System.Math.Sin(x);
-
-        private static WeatherKind SampleWeatherKindForDay(GameClock clock, DeterministicRng rng)
-        {
-            Season season = clock.CurrentSeason;
-            float r = rng.NextFloat01();
-            if (season == Season.Winter)
-            {
-                if (r < 0.35f) return WeatherKind.Storm;
-                if (r < 0.6f) return WeatherKind.Overcast;
-                return WeatherKind.Clear;
-            }
-
-            if (season == Season.Summer)
-            {
-                if (r < 0.2f) return WeatherKind.HeatHaze;
-                if (r < 0.35f) return WeatherKind.Overcast;
-                return WeatherKind.Clear;
-            }
-
-            if (r < 0.25f) return WeatherKind.Overcast;
-            if (r < 0.35f) return WeatherKind.Storm;
-            return WeatherKind.Clear;
-        }
 
         private static void ApplyVisualWeatherToSample(ref WeatherSample weather, WeatherKind kind)
         {

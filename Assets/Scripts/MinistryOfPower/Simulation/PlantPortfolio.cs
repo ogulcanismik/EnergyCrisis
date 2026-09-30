@@ -177,17 +177,43 @@ namespace MinistryOfPower.Simulation
             return supply;
         }
 
-        public float EstimateMarginalCost(float fuelPriceIndex, float oilShockMultiplier)
+        public void ClearAllFuelDerates()
         {
-            float bestCost = float.MaxValue;
-            bool found = false;
+            for (int i = 0; i < _plants.Count; i++)
+            {
+                _plants[i].ClearFuelDerate();
+            }
+        }
+
+        /// <summary>
+        /// Merit-order expensive-edge cost: stack cheapest effective MW until demand is met,
+        /// return the variable cost of the last plant needed (peaker sets the price).
+        /// </summary>
+        public float EstimateMarginalCost(
+            float fuelPriceIndex,
+            float oilShockMultiplier,
+            float demandMw,
+            float solarFactor,
+            float windFactor,
+            float hydroFactor)
+        {
+            EnsureMeritBuffers();
+            int n = 0;
             for (int i = 0; i < _plants.Count; i++)
             {
                 PlantInstance p = _plants[i];
-                if (p.IsRetired || p.CapacityMw <= 0f)
+                if (p.IsRetired || p.CapacityMw <= 0f) continue;
+
+                float weather = 1f;
+                switch (p.Fuel)
                 {
-                    continue;
+                    case FuelKind.Solar: weather = solarFactor; break;
+                    case FuelKind.Wind: weather = windFactor; break;
+                    case FuelKind.Hydro: weather = hydroFactor; break;
                 }
+
+                float mw = p.EffectiveCapacityMw(weather);
+                if (mw <= 0.01f) continue;
 
                 float cost = p.VariableCostPerMwh * fuelPriceIndex;
                 if (p.Fuel.IsOilLinked())
@@ -195,14 +221,52 @@ namespace MinistryOfPower.Simulation
                     cost *= 1f + p.OilExposure * (oilShockMultiplier - 1f);
                 }
 
-                if (cost < bestCost)
-                {
-                    bestCost = cost;
-                    found = true;
-                }
+                _meritCost[n] = cost;
+                _meritMw[n] = mw;
+                n++;
+                if (n >= _meritCost.Length) break;
             }
 
-            return found ? bestCost : 80f;
+            if (n == 0) return 80f;
+
+            for (int i = 1; i < n; i++)
+            {
+                float c = _meritCost[i];
+                float m = _meritMw[i];
+                int j = i - 1;
+                while (j >= 0 && _meritCost[j] > c)
+                {
+                    _meritCost[j + 1] = _meritCost[j];
+                    _meritMw[j + 1] = _meritMw[j];
+                    j--;
+                }
+
+                _meritCost[j + 1] = c;
+                _meritMw[j + 1] = m;
+            }
+
+            float need = demandMw > 0.01f ? demandMw : _meritMw[0];
+            float filled = 0f;
+            float edge = _meritCost[0];
+            for (int i = 0; i < n; i++)
+            {
+                filled += _meritMw[i];
+                edge = _meritCost[i];
+                if (filled >= need) break;
+            }
+
+            return edge;
+        }
+
+        private float[] _meritCost;
+        private float[] _meritMw;
+
+        private void EnsureMeritBuffers()
+        {
+            int need = _plants.Count < 8 ? 8 : _plants.Count;
+            if (_meritCost != null && _meritCost.Length >= need) return;
+            _meritCost = new float[need];
+            _meritMw = new float[need];
         }
     }
 }

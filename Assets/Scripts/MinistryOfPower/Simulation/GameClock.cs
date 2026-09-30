@@ -26,6 +26,9 @@ namespace MinistryOfPower.Simulation
         public const int QuartersPerYear = 4;
         public const int DaysPerYear = DaysPerQuarter * QuartersPerYear;
         public const int DaysPerMonthApprox = 30;
+        /// <summary>Real seconds for one in-game day at 1× (HUD Slow/Normal). ~2.8 min; 7s per hour tick.</summary>
+        public const float SecondsPerDay1x = 168f;
+        public const float HoursPerDay = 24f;
 
         public int DayIndex { get; private set; }
         public int AbsoluteDay { get; private set; }
@@ -150,16 +153,22 @@ namespace MinistryOfPower.Simulation
             Speed = speed;
         }
 
+        /// <summary>
+        /// Real-time length of one in-game day.
+        /// Pause → never ticks; 1× → <see cref="SecondsPerDay1x"/>; 2× / 5× scale down.
+        /// </summary>
         public static float SecondsPerDay(GameSpeed speed)
         {
             switch (speed)
             {
-                case GameSpeed.Slow: return 2.0f;
-                case GameSpeed.Normal: return 0.85f;
-                case GameSpeed.Fast: return 0.28f;
-                case GameSpeed.VeryFast: return 0.08f;
+                case GameSpeed.Slow: return SecondsPerDay1x;           // 1×
+                case GameSpeed.Normal: return SecondsPerDay1x;         // 1× (default HUD button)
+                case GameSpeed.Fast: return SecondsPerDay1x / 2f;      // 2× → 84s
+                case GameSpeed.VeryFast: return SecondsPerDay1x / 5f;  // 5× → 33.6s
                 default: return float.MaxValue;
             }
         }
+
+        public static float SecondsPerHour(GameSpeed speed) => SecondsPerDay(speed) / HoursPerDay;
     }
 }

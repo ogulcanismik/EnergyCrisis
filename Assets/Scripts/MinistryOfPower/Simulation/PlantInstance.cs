@@ -12,6 +12,8 @@ namespace MinistryOfPower.Simulation
         public float QuarterlyUpkeep { get; private set; }
         public float DailyFuelUse { get; private set; }
         public bool IsRetired { get; private set; }
+        /// <summary>1 = full output; &lt;1 when fuel stockpile could not cover daily use.</summary>
+        public float FuelDerate { get; private set; } = 1f;
         public string DefinitionId { get; }
         public RegionId Region { get; private set; }
 
@@ -39,16 +41,21 @@ namespace MinistryOfPower.Simulation
             QuarterlyUpkeep = quarterlyUpkeep;
             DailyFuelUse = dailyFuelUse;
             IsRetired = false;
+            FuelDerate = 1f;
             Region = region;
         }
 
         public void SetRegion(RegionId region) => Region = region;
 
+        public void SetFuelDerate(float derate) => FuelDerate = Clamp01(derate);
+
+        public void ClearFuelDerate() => FuelDerate = 1f;
+
         public float EffectiveCapacityMw(float weatherFactor)
         {
             if (IsRetired) return 0f;
             float weather = Fuel.IsWeatherSensitive() ? weatherFactor : 1f;
-            return CapacityMw * Availability * weather;
+            return CapacityMw * Availability * weather * FuelDerate;
         }
 
         public void Retire() => IsRetired = true;

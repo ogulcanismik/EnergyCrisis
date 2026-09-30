@@ -85,6 +85,12 @@ namespace MinistryOfPower.Simulation
         public const float MeterCrashAffordabilityThreshold = 40f;
         public const int MeterCrashCooldownDays = 16;
         public const int MeterCrashStreakRequired = 2;
+        /// <summary>Firm MW while cabinet emergency fossil waiver is active.</summary>
+        public const float EmergencyFossilExtraMw = 120f;
+        /// <summary>Affordability cushion while tariff freeze is active.</summary>
+        public const float TariffFreezeAffordBoost = 10f;
+        /// <summary>Output factor when a plant's daily fuel burn cannot be stocked.</summary>
+        public const float FuelShortageDerate = 0.35f;
 
         public event Action<DayReport> DayResolved;
         public event Action<PendingEvent> EventRaised;
@@ -493,8 +499,13 @@ namespace MinistryOfPower.Simulation
 
             ConsumeFuelsAndApplyShortages();
             Modifiers.ExtraFirmMw = PrivateReserveMw + EmergencyImportMw;
+            if (Cabinet != null && Cabinet.EmergencyFossilActive)
+            {
+                Modifiers.ExtraFirmMw += EmergencyFossilExtraMw;
+            }
 
             DeterministicRng dayRng = new DeterministicRng(Scenario.Seed ^ (Clock.AbsoluteDay * 397) ^ 0x5F3759DF);
+            // Single weather kind for HUD + DayResolver (S3).
             CurrentWeather = SampleWeatherKind(Clock, dayRng);
             FuelMarket.TickDay(dayRng, Modifiers);
             FuelPriceIndex = FuelMarket.BlendedIndex;
@@ -511,7 +522,12 @@ namespace MinistryOfPower.Simulation
             DayReport report = DayResolver.Resolve(
                 Clock, Portfolio, Scenario.BaseDemandMw,
                 Scenario.SolarResource, Scenario.WindResource,
-                FuelPriceIndex, Modifiers, Budget, Meters, _effectiveLobby, dayRng);
+                FuelPriceIndex, Modifiers, Budget, Meters, _effectiveLobby, CurrentWeather, dayRng);
+
+            if (Cabinet != null && Cabinet.TariffFreezeActive)
+            {
+                report.Affordability = SeatMeters.Clamp(report.Affordability + TariffFreezeAffordBoost);
+            }
 
             // Difficulty scales confidence drain after resolve
             float conf = report.Confidence;
@@ -899,6 +915,7 @@ namespace MinistryOfPower.Simulation
 
         private void ConsumeFuelsAndApplyShortages()
         {
+            Portfolio.ClearAllFuelDerates();
             IReadOnlyList<PlantInstance> plants = Portfolio.Plants;
             bool shortage = false;
             for (int i = 0; i < plants.Count; i++)
@@ -911,6 +928,7 @@ namespace MinistryOfPower.Simulation
 
                 if (!Resources.TryConsume(p.Fuel, p.DailyFuelUse))
                 {
+                    p.SetFuelDerate(FuelShortageDerate);
                     shortage = true;
                 }
             }

@@ -32,6 +32,9 @@ namespace MinistryOfPower.Simulation
             ClimateMandatePressure = SeatMeters.Clamp(100f - meters.Transition);
             IndustryPressure = SeatMeters.Clamp(40f + fossilLobby * 40f);
             AffordabilityMandate = SeatMeters.Clamp(100f - meters.Affordability);
+            ActiveMandate = meters.Transition < 30f
+                ? "PM wants a visible transition milestone this year."
+                : "Hold the seat: adequacy first, then affordability.";
         }
 
         public void TickDay()
