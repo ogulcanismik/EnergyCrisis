@@ -8,6 +8,7 @@ namespace MinistryOfPower.UI.Map
     /// <summary>
     /// Paradox-style map camera: right-mouse pan, scroll zoom.
     /// Left-click selection stays on DayNightWeatherController / markers.
+    /// Reads limits from <see cref="MapTuning"/> when present.
     /// </summary>
     public sealed class MapCameraController : MonoBehaviour
     {
@@ -17,6 +18,7 @@ namespace MinistryOfPower.UI.Map
         [SerializeField] private float minOrtho = UsaMapLayout.MinOrthoSize;
         [SerializeField] private float maxOrtho = UsaMapLayout.MaxOrthoSize;
         [SerializeField] private Vector2 panBounds = new Vector2(14f, 10f);
+        [SerializeField] private MapTuning mapTuning;
 
         private bool _panning;
         private Vector2 _lastPointer;
@@ -27,7 +29,19 @@ namespace MinistryOfPower.UI.Map
         public void Bind(Camera cam)
         {
             targetCamera = cam;
+            ApplyTuningFromScene();
             ApplyDefaultFrame(force: !_framed);
+        }
+
+        public void ApplyTuningFromScene()
+        {
+            if (mapTuning == null) mapTuning = MapTuning.FindActive();
+            if (mapTuning == null) return;
+            minOrtho = mapTuning.MinOrthoSize;
+            maxOrtho = mapTuning.MaxOrthoSize;
+            panBounds = mapTuning.PanBounds;
+            panSpeed = mapTuning.PanSpeed;
+            zoomStep = mapTuning.ZoomStep;
         }
 
         public void ApplyDefaultFrame(bool force = false)
@@ -36,8 +50,11 @@ namespace MinistryOfPower.UI.Map
             if (targetCamera == null) return;
             if (_framed && !force) return;
 
+            if (mapTuning == null) mapTuning = MapTuning.FindActive();
+            float ortho = mapTuning != null ? mapTuning.DefaultOrthoSize : UsaMapLayout.DefaultOrthoSize;
+
             targetCamera.orthographic = true;
-            targetCamera.orthographicSize = UsaMapLayout.DefaultOrthoSize;
+            targetCamera.orthographicSize = ortho;
             targetCamera.transform.position = UsaMapLayout.DefaultCameraPosition;
             // Near-top-down so Shell B chrome frames a flat political map.
             targetCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);

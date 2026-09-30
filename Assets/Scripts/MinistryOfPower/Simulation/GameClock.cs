@@ -30,6 +30,22 @@ namespace MinistryOfPower.Simulation
         public const float SecondsPerDay1x = 168f;
         public const float HoursPerDay = 24f;
 
+        /// <summary>Active 1× day length (from <see cref="Data.GameTuning"/> or default const).</summary>
+        private static float s_secondsPerDay1x = SecondsPerDay1x;
+        private static float s_speedMultiplierFast = 2f;
+        private static float s_speedMultiplierVeryFast = 5f;
+
+        /// <summary>Effective 1× seconds/day after tuning apply (defaults to <see cref="SecondsPerDay1x"/>).</summary>
+        public static float ActiveSecondsPerDay1x => s_secondsPerDay1x > 0f ? s_secondsPerDay1x : SecondsPerDay1x;
+
+        /// <summary>Push pace knobs from GameTuning / GameManager. Pass &lt;=0 to reset to defaults.</summary>
+        public static void ApplyPaceTuning(float secondsPerDay1x, float speedMultiplierFast, float speedMultiplierVeryFast)
+        {
+            s_secondsPerDay1x = secondsPerDay1x > 0f ? secondsPerDay1x : SecondsPerDay1x;
+            s_speedMultiplierFast = speedMultiplierFast >= 1f ? speedMultiplierFast : 2f;
+            s_speedMultiplierVeryFast = speedMultiplierVeryFast >= 1f ? speedMultiplierVeryFast : 5f;
+        }
+
         public int DayIndex { get; private set; }
         public int AbsoluteDay { get; private set; }
         public int QuarterIndex { get; private set; }
@@ -155,16 +171,17 @@ namespace MinistryOfPower.Simulation
 
         /// <summary>
         /// Real-time length of one in-game day.
-        /// Pause → never ticks; 1× → <see cref="SecondsPerDay1x"/>; 2× / 5× scale down.
+        /// Pause → never ticks; 1× → <see cref="ActiveSecondsPerDay1x"/>; Fast/VeryFast use tuning multipliers.
         /// </summary>
         public static float SecondsPerDay(GameSpeed speed)
         {
+            float baseDay = ActiveSecondsPerDay1x;
             switch (speed)
             {
-                case GameSpeed.Slow: return SecondsPerDay1x;           // 1×
-                case GameSpeed.Normal: return SecondsPerDay1x;         // 1× (default HUD button)
-                case GameSpeed.Fast: return SecondsPerDay1x / 2f;      // 2× → 84s
-                case GameSpeed.VeryFast: return SecondsPerDay1x / 5f;  // 5× → 33.6s
+                case GameSpeed.Slow: return baseDay;                                      // 1×
+                case GameSpeed.Normal: return baseDay;                                    // 1× (default HUD button)
+                case GameSpeed.Fast: return baseDay / s_speedMultiplierFast;              // default 2×
+                case GameSpeed.VeryFast: return baseDay / s_speedMultiplierVeryFast;      // default 5×
                 default: return float.MaxValue;
             }
         }

@@ -119,6 +119,40 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &232250864
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 232250865}
+  m_Layer: 0
+  m_Name: Managers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &232250865
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 232250864}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1562683882}
+  - {fileID: 1872313431}
+  - {fileID: 983011239}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &791242906
 GameObject:
   m_ObjectHideFlags: 0
@@ -214,8 +248,225 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1499563854}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1 &983011238
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 983011239}
+  - component: {fileID: 983011240}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &983011239
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 983011238}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 232250865}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &983011240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 983011238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8872f71851999854f8ed8f6e032a0c6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.AudioManager
+  muteMaster: 0
+  masterVolume: 1
+--- !u!1 &1011967176
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1011967177}
+  m_Layer: 0
+  m_Name: UI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1011967177
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1011967176}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1262823387
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1262823388}
+  - component: {fileID: 1262823392}
+  - component: {fileID: 1262823391}
+  - component: {fileID: 1262823390}
+  - component: {fileID: 1262823389}
+  m_Layer: 0
+  m_Name: MapSystems
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1262823388
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262823387}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1499563854}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1262823389
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262823387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 815cb21b3eef5b344b1b01ba28fb0929, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.MapTuning
+  gameTuning: {fileID: 11400000, guid: ec13e23d822f58e48bc31909d9854af3, type: 2}
+  pngWorldSize: {x: 26.2, y: 19.65}
+  pngWorldOffset: {x: -0.1, y: -0.85}
+  artHeight: -0.01
+  defaultOrthoSize: 12.5
+  minOrthoSize: 4.5
+  maxOrthoSize: 18
+  panBounds: {x: 14, y: 10}
+  panSpeed: 0.018
+  zoomStep: 1.1
+--- !u!114 &1262823390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262823387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2adfa13748afdd84cae2cc05bb72cbfe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.MapCameraController
+  targetCamera: {fileID: 0}
+  panSpeed: 0.018
+  zoomStep: 1.1
+  minOrtho: 4.5
+  maxOrtho: 18
+  panBounds: {x: 14, y: 10}
+  mapTuning: {fileID: 0}
+--- !u!114 &1262823391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262823387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37b8488101147394abd9f3ea7ddfc10b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.PoliticalMapPresenter
+  sunRichTint: 0
+  prototypeMapTexture: {fileID: 0}
+--- !u!114 &1262823392
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262823387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88d9942a89c5d4488707bbb838b14cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.DayNightWeatherController
+  sunLight: {fileID: 0}
+  targetCamera: {fileID: 0}
+  mapPresenter: {fileID: 0}
+  mapCamera: {fileID: 0}
+--- !u!1 &1499563853
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1499563854}
+  m_Layer: 0
+  m_Name: World
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1499563854
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1499563853}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1262823388}
+  - {fileID: 2091164920}
+  - {fileID: 791242908}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1562683879
 GameObject:
   m_ObjectHideFlags: 0
@@ -226,10 +477,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1562683882}
   - component: {fileID: 1562683880}
-  - component: {fileID: 1562683884}
   - component: {fileID: 1562683883}
   m_Layer: 0
-  m_Name: MinistryRoot
+  m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -249,8 +499,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.MinistryGameRunner
   startingScenario: {fileID: 11400000, guid: dadfd921b015c1e44935b4a16d14fd0e, type: 2}
   alternateScenario: {fileID: 11400000, guid: ae3c04ff34a7f3b4fb45f0b0204a5eeb, type: 2}
-  paradoxHud: {fileID: 0}
-  dayNight: {fileID: 0}
+  paradoxHud: {fileID: 1872313432}
+  dayNight: {fileID: 1262823392}
   autoStart: 1
 --- !u!4 &1562683882
 Transform:
@@ -260,12 +510,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1562683879}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 232250865}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1562683883
 MonoBehaviour:
@@ -276,24 +526,74 @@ MonoBehaviour:
   m_GameObject: {fileID: 1562683879}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f88d9942a89c5d4488707bbb838b14cb, type: 3}
+  m_Script: {fileID: 11500000, guid: 18dc82a1e38d39b469241144660fc3f0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.DayNightWeatherController
-  sunLight: {fileID: 0}
-  targetCamera: {fileID: 0}
-  groundMaterial: {fileID: 0}
---- !u!114 &1562683884
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.GameManager
+  tuning: {fileID: 11400000, guid: ec13e23d822f58e48bc31909d9854af3, type: 2}
+  runner: {fileID: 1562683880}
+  uiManager: {fileID: 1872313433}
+  audioManager: {fileID: 983011240}
+  mapTuning: {fileID: 1262823389}
+--- !u!1 &1872313430
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1872313431}
+  - component: {fileID: 1872313433}
+  - component: {fileID: 1872313432}
+  m_Layer: 0
+  m_Name: UIManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1872313431
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1872313430}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 232250865}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1872313432
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1562683879}
+  m_GameObject: {fileID: 1872313430}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5e51da41b7d7e4a4e98ee49d2556ad56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.ParadoxChromeHud
+--- !u!114 &1872313433
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1872313430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11d7ac26db1cb074bbce631e04628a5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.UIManager
+  paradoxHud: {fileID: 1872313432}
+  pauseMenu: {fileID: 0}
+  tuning: {fileID: 11400000, guid: ec13e23d822f58e48bc31909d9854af3, type: 2}
 --- !u!1 &2091164917
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,17 +679,17 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2091164917}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1499563854}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 2091164920}
-  - {fileID: 791242908}
-  - {fileID: 1562683882}
+  - {fileID: 232250865}
+  - {fileID: 1499563854}
+  - {fileID: 1011967177}

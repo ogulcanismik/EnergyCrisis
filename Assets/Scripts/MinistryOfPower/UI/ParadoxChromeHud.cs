@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using MinistryOfPower.Data;
 using MinistryOfPower.Runtime;
 using MinistryOfPower.Simulation;
 
@@ -117,6 +118,33 @@ namespace MinistryOfPower.UI
         private Action _onEmergencyImport;
         private Action _onPrivateReserve;
         private Action _onResign;
+
+        // Layout knobs from GameTuning (applied before EnsureUi builds chrome).
+        private float _timeControlScale = 1f;
+        private float _timeSpeedSlotWidth = 0.056f;
+        private int _timeControlFontSize = 10;
+        private float _leftRailWidth = 0.11f;
+        private float _leftDrawerMaxX = 0.40f;
+        private float _rightDrawerMinX = 0.78f;
+        private float _reportChartHeight = 0.40f;
+        private int _hudBodyFontSize = 11;
+        private int _hudTitleFontSize = 18;
+
+        /// <summary>Push designer knobs before chrome is built. No-op after EnsureUi has run.</summary>
+        public void ApplyTuning(GameTuning tuning)
+        {
+            if (tuning == null) return;
+            _timeControlScale = tuning.timeControlScale;
+            _timeSpeedSlotWidth = tuning.timeSpeedSlotWidth;
+            _timeControlFontSize = tuning.timeControlFontSize;
+            _leftRailWidth = tuning.leftRailWidth;
+            _leftDrawerMaxX = tuning.leftDrawerMaxX;
+            _rightDrawerMinX = tuning.rightDrawerMinX;
+            _reportChartHeight = tuning.reportChartHeight;
+            _hudBodyFontSize = tuning.hudBodyFontSize;
+            _hudTitleFontSize = tuning.hudTitleFontSize;
+            _reportCharts?.ApplyChartHeight(_reportChartHeight);
+        }
         private Func<GameSession> _session;
 
         private void OnEnable()
@@ -986,15 +1014,18 @@ namespace MinistryOfPower.UI
                 var rt = _leftPanel.GetComponent<RectTransform>();
                 if (rt != null)
                 {
+                    float rail = _leftRailWidth;
+                    float leftMax = _leftDrawerMaxX;
+                    float flyoutRight = rail + 0.13f;
                     if (open && _leftPanel.activeSelf)
                     {
-                        rt.anchorMin = new Vector2(0.24f, 0.18f);
-                        rt.anchorMax = new Vector2(0.50f, 0.905f);
+                        rt.anchorMin = new Vector2(flyoutRight, 0.18f);
+                        rt.anchorMax = new Vector2(Mathf.Min(leftMax + 0.10f, 0.55f), 0.905f);
                     }
                     else
                     {
-                        rt.anchorMin = new Vector2(0.11f, 0.18f);
-                        rt.anchorMax = new Vector2(0.40f, 0.905f);
+                        rt.anchorMin = new Vector2(rail, 0.18f);
+                        rt.anchorMax = new Vector2(leftMax, 0.905f);
                     }
                 }
             }
@@ -1074,37 +1105,40 @@ namespace MinistryOfPower.UI
                 new Vector2(0.28f, 0.91f), new Vector2(0.70f, 0.955f));
 
             // Compact time cluster (right): date/hour above Pause/1x/2x/5x/Skip — not half the top bar.
-            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(0.70f, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
+            float timeLeft = Mathf.Clamp(1f - 0.30f * _timeControlScale, 0.55f, 0.78f);
+            UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(timeLeft, 0.905f), new Vector2(1f, 1f), UiFactory.Hex("2B2118"));
             _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, 11, FontStyle.Bold,
-                new Vector2(0.705f, 0.955f), new Vector2(0.90f, 0.995f), TextAnchor.MiddleLeft);
+                new Vector2(timeLeft + 0.005f, 0.955f), new Vector2(timeLeft + 0.20f * _timeControlScale, 0.995f), TextAnchor.MiddleLeft);
             _tickText = UiFactory.Label(canvasGo.transform, "Tick", accent, 10, FontStyle.Bold,
                 new Vector2(0.90f, 0.955f), new Vector2(0.945f, 0.995f), TextAnchor.MiddleCenter);
             _speedText = UiFactory.Label(canvasGo.transform, "Spd", paper, 10, FontStyle.Bold,
                 new Vector2(0.945f, 0.955f), new Vector2(0.995f, 0.995f), TextAnchor.MiddleCenter);
             const float speedY0 = 0.908f;
             const float speedY1 = 0.952f;
-            const float speedX0 = 0.705f;
-            const float speedSlot = 0.056f;
+            float speedX0 = timeLeft + 0.005f;
+            float speedSlot = _timeSpeedSlotWidth;
             const float speedGap = 0.003f;
+            int spdFont = _timeControlFontSize;
+            float daySec = GameClock.ActiveSecondsPerDay1x;
             UiFactory.Button(canvasGo.transform, "P", "❚❚",
                 new Vector2(speedX0, speedY0), new Vector2(speedX0 + speedSlot, speedY1),
-                () => _onPause?.Invoke(), accent, ink, 10, "Pause");
+                () => _onPause?.Invoke(), accent, ink, spdFont, "Pause");
             UiFactory.Button(canvasGo.transform, "S1", "1x",
                 new Vector2(speedX0 + (speedSlot + speedGap), speedY0),
                 new Vector2(speedX0 + 2f * speedSlot + speedGap, speedY1),
-                () => _onNormal?.Invoke(), accent, ink, 10, "1× · 168s/day");
+                () => _onNormal?.Invoke(), accent, ink, spdFont, "1× · " + daySec.ToString("0") + "s/day");
             UiFactory.Button(canvasGo.transform, "S2", "2x",
                 new Vector2(speedX0 + 2f * (speedSlot + speedGap), speedY0),
                 new Vector2(speedX0 + 3f * speedSlot + 2f * speedGap, speedY1),
-                () => _onFast?.Invoke(), accent, ink, 10, "2× · ~84s/day");
+                () => _onFast?.Invoke(), accent, ink, spdFont, "2× · ~" + (daySec / 2f).ToString("0") + "s/day");
             UiFactory.Button(canvasGo.transform, "S5", "5x",
                 new Vector2(speedX0 + 3f * (speedSlot + speedGap), speedY0),
                 new Vector2(speedX0 + 4f * speedSlot + 3f * speedGap, speedY1),
-                () => _onVeryFast?.Invoke(), accent, ink, 10, "5× · ~34s/day");
+                () => _onVeryFast?.Invoke(), accent, ink, spdFont, "5× · ~" + (daySec / 5f).ToString("0") + "s/day");
             UiFactory.Button(canvasGo.transform, "D1", "Skip",
                 new Vector2(speedX0 + 4f * (speedSlot + speedGap), speedY0),
                 new Vector2(0.995f, speedY1),
-                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, 10, "Skip +1 day (not a speed)");
+                () => _onStep?.Invoke(), UiFactory.Hex("8B6914"), paper, spdFont, "Skip +1 day (not a speed)");
 
             var seasonImg = UiFactory.Panel(canvasGo.transform, "SeasonBanner", new Vector2(0.28f, 0.84f), new Vector2(0.72f, 0.90f), UiFactory.Hex("2B2118"));
             _seasonBanner = seasonImg.gameObject;
@@ -1119,20 +1153,22 @@ namespace MinistryOfPower.UI
             _tipBanner.SetActive(false);
 
             // ——— LEFT RAIL: primary menus; secondary under Reports submenu ———
-            UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, 0.18f), new Vector2(0.11f, 0.905f), bar);
+            float railW = _leftRailWidth;
+            float leftMax = _leftDrawerMaxX;
+            UiFactory.Panel(canvasGo.transform, "LeftRail", new Vector2(0f, 0.18f), new Vector2(railW, 0.905f), bar);
             float ly = 0.88f;
             MenuBtn(canvasGo.transform, "Construction", MenuId.Construction, ref ly, "Queue, catalog, projections");
             MenuBtn(canvasGo.transform, "Policy", MenuId.Policy, ref ly, "Subsidies, freezes, reserves");
             MenuBtn(canvasGo.transform, "Investment", MenuId.Deals, ref ly, "Imports & private reserve");
             var reportsBtn = UiFactory.Button(canvasGo.transform, "M_Reports", "Reports ▾",
-                new Vector2(0.01f, ly - 0.055f), new Vector2(0.105f, ly),
+                new Vector2(0.01f, ly - 0.055f), new Vector2(railW - 0.005f, ly),
                 ToggleReportsFlyout, UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11,
                 "Budget, history, mandate, mix, resources");
             _reportsToggleLabel = reportsBtn.GetComponentInChildren<Text>();
             ly -= 0.065f;
 
             var reportsFly = UiFactory.Panel(canvasGo.transform, "ReportsFlyout",
-                new Vector2(0.11f, 0.48f), new Vector2(0.24f, 0.88f), UiFactory.Hex("2B2118"));
+                new Vector2(railW, 0.48f), new Vector2(railW + 0.13f, 0.88f), UiFactory.Hex("2B2118"));
             _reportsFlyout = reportsFly.gameObject;
             float ry = 0.92f;
             FlyoutMenuBtn(reportsFly.transform, "Energy Mix", MenuId.EnergyMix, ref ry, "Live plant portfolio");
@@ -1143,14 +1179,15 @@ namespace MinistryOfPower.UI
             _reportsFlyout.SetActive(false);
 
             // Left content panel
-            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(0.11f, 0.18f), new Vector2(0.40f, 0.905f), panel);
+            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(railW, 0.18f), new Vector2(leftMax, 0.905f), panel);
             _leftPanel = side.gameObject;
-            _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, 18, FontStyle.Bold,
+            _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, _hudTitleFontSize, FontStyle.Bold,
                 new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
-            _panelBody = UiFactory.Label(side.transform, "PBody", paper, 11, FontStyle.Normal,
+            _panelBody = UiFactory.Label(side.transform, "PBody", paper, _hudBodyFontSize, FontStyle.Normal,
                 new Vector2(0.04f, 0.52f), new Vector2(0.96f, 0.9f), TextAnchor.UpperLeft);
 
             _reportCharts = ReportChartsHost.Create(side.transform);
+            _reportCharts.ApplyChartHeight(_reportChartHeight);
 
             var filterToggle = UiFactory.Button(side.transform, "FilterToggle", "Filters ▾",
                 new Vector2(0.04f, 0.455f), new Vector2(0.36f, 0.51f),
@@ -1250,7 +1287,7 @@ namespace MinistryOfPower.UI
             _leftPanel.SetActive(false);
 
             // ——— RIGHT DRAWER: Cabinet + Lobby (deep lobby copy behind submenu) ———
-            var right = UiFactory.Panel(canvasGo.transform, "RightDrawer", new Vector2(0.78f, 0.18f), new Vector2(1f, 0.905f), panel);
+            var right = UiFactory.Panel(canvasGo.transform, "RightDrawer", new Vector2(_rightDrawerMinX, 0.18f), new Vector2(1f, 0.905f), panel);
             _rightDrawer = right.gameObject;
             UiFactory.Button(right.transform, "CabOpen", "Cabinet detail", new Vector2(0.08f, 0.94f), new Vector2(0.92f, 0.99f),
                 () => ToggleMenu(MenuId.Cabinet), UiFactory.Hex("3A2E22"), accent, 11, "Open cabinet briefing");
@@ -1447,7 +1484,7 @@ namespace MinistryOfPower.UI
         {
             float h = 0.055f;
             UiFactory.Button(parent, "M_" + label, label,
-                new Vector2(0.01f, y - h), new Vector2(0.105f, y),
+                new Vector2(0.01f, y - h), new Vector2(_leftRailWidth - 0.005f, y),
                 () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 11, tip);
             y -= h + 0.01f;
         }

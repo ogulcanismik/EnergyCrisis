@@ -49,6 +49,26 @@ namespace MinistryOfPower.UI
             HideAll();
         }
 
+        /// <summary>Resize report chart slots (normalized panel Y height from GameTuning).</summary>
+        public void ApplyChartHeight(float height)
+        {
+            float h = Mathf.Clamp(height, 0.2f, 0.55f);
+            float y1 = 0.08f + h;
+            ApplySlotAnchors(_mandateHost, new Vector2(0.04f, 0.08f), new Vector2(0.96f, y1));
+            ApplySlotAnchors(_budgetHost, new Vector2(0.04f, 0.08f), new Vector2(0.96f, y1));
+        }
+
+        private static void ApplySlotAnchors(GameObject host, Vector2 min, Vector2 max)
+        {
+            if (host == null) return;
+            var rt = host.GetComponent<RectTransform>();
+            if (rt == null) return;
+            rt.anchorMin = min;
+            rt.anchorMax = max;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
         public void AttachYearChart(Transform yearModal)
         {
             if (_yearHost != null || yearModal == null) return;

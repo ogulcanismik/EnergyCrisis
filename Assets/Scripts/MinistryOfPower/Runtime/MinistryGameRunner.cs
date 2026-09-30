@@ -30,22 +30,61 @@ namespace MinistryOfPower.Runtime
         private int _lastAutosaveDay = -1;
         private int _lastRenderedHour = -1;
         private PauseMenuOverlay _pauseMenu;
+        private GameManager _gameManager;
 
         public GameSession Session => _session;
 
         private void Awake()
         {
+            // Prefer explicit GameManager hub when present (Play from menu / greybox).
+            if (GameManager.Instance == null && GetComponent<GameManager>() == null)
+                GameManager.Ensure();
+
             Transform leftover = transform.Find("MinistryDeskCanvas");
             if (leftover != null)
             {
                 Destroy(leftover.gameObject);
             }
 
+            ResolvePresentation();
+        }
+
+        public void BindFromGameManager(GameManager gm)
+        {
+            _gameManager = gm;
+            if (gm != null && gm.UI != null)
+            {
+                paradoxHud = gm.UI.EnsureHud();
+                gm.UI.BindTuning(gm.Tuning);
+            }
+
+            ResolvePresentation();
+        }
+
+        public void AssignPresentation(ParadoxChromeHud hud, DayNightWeatherController weather)
+        {
+            if (hud != null) paradoxHud = hud;
+            if (weather != null) dayNight = weather;
+        }
+
+        private void ResolvePresentation()
+        {
+            if (paradoxHud == null)
+            {
+                var ui = FindFirstObjectByType<UIManager>();
+                if (ui != null) paradoxHud = ui.EnsureHud();
+            }
+
             if (paradoxHud == null) paradoxHud = GetComponent<ParadoxChromeHud>();
+            if (dayNight == null) dayNight = FindFirstObjectByType<DayNightWeatherController>();
             if (dayNight == null) dayNight = GetComponent<DayNightWeatherController>();
 
             if (paradoxHud == null) paradoxHud = gameObject.AddComponent<ParadoxChromeHud>();
             if (dayNight == null) dayNight = gameObject.AddComponent<DayNightWeatherController>();
+
+            if (_gameManager == null) _gameManager = GameManager.Instance;
+            if (_gameManager != null)
+                paradoxHud.ApplyTuning(_gameManager.Tuning);
         }
 
         private void Start()
@@ -218,6 +257,9 @@ namespace MinistryOfPower.Runtime
                 () => SceneManager.LoadScene("MainMenu"));
 
             _pauseMenu = PauseMenuOverlay.Ensure(transform);
+            var uiMgr = FindFirstObjectByType<UIManager>();
+            if (uiMgr != null)
+                uiMgr.EnsurePauseMenu(transform);
             _pauseMenu.Bind(
                 () => _session,
                 () =>

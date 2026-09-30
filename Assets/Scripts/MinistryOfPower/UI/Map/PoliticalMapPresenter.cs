@@ -171,12 +171,12 @@ namespace MinistryOfPower.UI.Map
             // Face +Y toward the top-down map camera.
             art.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
             art.transform.position = new Vector3(
-                UsaMapLayout.ArtWorldCenter.x,
-                UsaMapLayout.ArtHeight,
-                UsaMapLayout.ArtWorldCenter.y);
+                ResolveArtCenter().x,
+                ResolveArtHeight(),
+                ResolveArtCenter().y);
             art.transform.localScale = new Vector3(
-                UsaMapLayout.ArtWorldSize.x,
-                UsaMapLayout.ArtWorldSize.y,
+                ResolveArtSize().x,
+                ResolveArtSize().y,
                 1f);
 
             var col = art.GetComponent<Collider>();
@@ -203,6 +203,24 @@ namespace MinistryOfPower.UI.Map
 #else
             return Resources.Load<Texture2D>("Map/usa-map-prototype");
 #endif
+        }
+
+        private static Vector2 ResolveArtSize()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.PngWorldSize : UsaMapLayout.ArtWorldSize;
+        }
+
+        private static Vector2 ResolveArtCenter()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.PngWorldOffset : UsaMapLayout.ArtWorldCenter;
+        }
+
+        private static float ResolveArtHeight()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.ArtHeight : UsaMapLayout.ArtHeight;
         }
 
         private void BuildOcean()
