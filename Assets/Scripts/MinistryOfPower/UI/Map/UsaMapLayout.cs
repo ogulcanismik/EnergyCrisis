@@ -29,9 +29,14 @@ namespace MinistryOfPower.UI.Map
         /// <summary>Prototype map art (480×360 CONUS + Hawaii; no Alaska in the PNG).</summary>
         public const string PrototypeArtPath = "Assets/Art/Map/usa-map-prototype.png";
         public static bool UsePrototypeArt = true;
+        /// <summary>
+        /// Pixels-per-unit for the prototype sprite so 480×360 lands at
+        /// <see cref="ArtWorldSize"/> (480/26.2 ≈ 360/19.65). Keeps aspect via SpriteRenderer.
+        /// </summary>
+        public const float PrototypeArtPixelsPerUnit = 18.32061f;
         /// <summary>World XZ size of the full PNG (4:3). Tuned so CONUS rings sit under painted states.</summary>
         public static readonly Vector2 ArtWorldSize = new Vector2(26.2f, 19.65f);
-        /// <summary>World XZ center of the PNG quad.</summary>
+        /// <summary>World XZ center of the PNG sprite.</summary>
         public static readonly Vector2 ArtWorldCenter = new Vector2(-0.1f, -0.85f);
         public const float ArtHeight = -0.01f;
         /// <summary>PNG has no Alaska — keep an invisible pick inset (no fill/border draw).</summary>

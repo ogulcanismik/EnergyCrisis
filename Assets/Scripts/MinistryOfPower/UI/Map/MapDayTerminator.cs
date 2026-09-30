@@ -135,6 +135,43 @@ namespace MinistryOfPower.UI.Map
         {
             if (_overlay == null) return;
 
+            Transform mapArt = null;
+            Transform mapRoot = ResolveMapRoot();
+            if (mapRoot != null) mapArt = mapRoot.Find("MapArt");
+            if (mapArt == null)
+            {
+                var go = GameObject.Find("MapArt");
+                if (go != null) mapArt = go.transform;
+            }
+
+            if (mapArt != null)
+            {
+                // Match SpriteRenderer (or legacy quad) pose; sit just above the art plane.
+                _overlay.rotation = mapArt.rotation;
+                Vector3 p = mapArt.position;
+                _overlay.position = new Vector3(p.x, p.y + overlayHeightOffset, p.z);
+
+                var sr = mapArt.GetComponent<SpriteRenderer>();
+                if (sr != null && sr.sprite != null)
+                {
+                    // Unit quad local XY → world XZ under the shared Euler(90,0,0) pose.
+                    Bounds b = sr.bounds;
+                    _overlay.localScale = new Vector3(
+                        Mathf.Max(0.01f, b.size.x),
+                        Mathf.Max(0.01f, b.size.z),
+                        1f);
+                    return;
+                }
+
+                // Legacy MeshRenderer quad: localScale already encodes world XZ size.
+                Vector3 s = mapArt.localScale;
+                _overlay.localScale = new Vector3(
+                    Mathf.Max(0.01f, Mathf.Abs(s.x)),
+                    Mathf.Max(0.01f, Mathf.Abs(s.y)),
+                    1f);
+                return;
+            }
+
             Vector2 size = ResolveArtSize();
             Vector2 center = ResolveArtCenter();
             float y = ResolveArtHeight() + overlayHeightOffset;

@@ -14,7 +14,7 @@ namespace MinistryOfPower.UI.Map
     public sealed class PoliticalMapPresenter : MonoBehaviour
     {
         [SerializeField] private bool sunRichTint;
-        [SerializeField] private Texture2D prototypeMapTexture;
+        [SerializeField] private Sprite prototypeMapSprite;
 
         private Transform _root;
         private Transform _plantRoot;
@@ -157,16 +157,20 @@ namespace MinistryOfPower.UI.Map
 
         private void BuildPrototypeArt()
         {
-            Texture2D tex = prototypeMapTexture != null ? prototypeMapTexture : LoadPrototypeTexture();
-            if (tex == null)
+            Transform existing = _root != null ? _root.Find("MapArt") : null;
+            if (existing != null) SafeDestroy(existing.gameObject);
+
+            Sprite sprite = prototypeMapSprite != null ? prototypeMapSprite : LoadPrototypeSprite();
+            if (sprite == null)
             {
-                Debug.LogWarning("PoliticalMapPresenter: prototype map texture missing; falling back to ocean plate.");
+                Debug.LogWarning("PoliticalMapPresenter: prototype map sprite missing; falling back to ocean plate.");
                 BuildOcean();
                 return;
             }
 
-            var art = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            art.name = "MapArt";
+            // SpriteRenderer (not a MeshRenderer quad): PPU owns world size/aspect so
+            // placeholder art swaps do not stretch UVs into a forced XZ scale.
+            var art = new GameObject("MapArt");
             art.transform.SetParent(_root, false);
             // Face +Y toward the top-down map camera. Yaw 0 keeps PNG geography
             // upright: west → −X, east → +X, Florida bottom-right of CONUS.
@@ -176,34 +180,29 @@ namespace MinistryOfPower.UI.Map
                 ResolveArtCenter().x,
                 ResolveArtHeight(),
                 ResolveArtCenter().y);
-            art.transform.localScale = new Vector3(
-                ResolveArtSize().x,
-                ResolveArtSize().y,
-                1f);
 
-            var col = art.GetComponent<Collider>();
-            if (col != null) SafeDestroy(col);
+            var sr = art.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = Color.white;
+            sr.sortingOrder = 0;
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
 
-            var mr = art.GetComponent<MeshRenderer>();
-            Shader unlit = Shader.Find("Universal Render Pipeline/Unlit")
-                           ?? Shader.Find("Unlit/Texture")
-                           ?? Shader.Find("Sprites/Default")
-                           ?? Shader.Find("Standard");
-            var mat = new Material(unlit);
-            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
-            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
-            mat.color = Color.white;
-            mr.sharedMaterial = mat;
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
+            // Uniform scale only: MapTuning may retarget width while preserving aspect.
+            Vector2 natural = sprite.bounds.size;
+            Vector2 target = ResolveArtSize();
+            float uniform = 1f;
+            if (natural.x > 0.0001f)
+                uniform = target.x / natural.x;
+            art.transform.localScale = new Vector3(uniform, uniform, 1f);
         }
 
-        private static Texture2D LoadPrototypeTexture()
+        private static Sprite LoadPrototypeSprite()
         {
 #if UNITY_EDITOR
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(UsaMapLayout.PrototypeArtPath);
+            return AssetDatabase.LoadAssetAtPath<Sprite>(UsaMapLayout.PrototypeArtPath);
 #else
-            return Resources.Load<Texture2D>("Map/usa-map-prototype");
+            return Resources.Load<Sprite>("Map/usa-map-prototype");
 #endif
         }
 

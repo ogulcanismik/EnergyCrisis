@@ -190,6 +190,7 @@ namespace MinistryOfPower.EditorTools
                     .Append(" geoOk=").Append(geoOk).AppendLine();
 
                 bool artOrientOk = true;
+                bool artSpriteOk = !UsaMapLayout.UsePrototypeArt;
                 var mapArtGo = GameObject.Find("MapArt");
                 if (mapArtGo != null)
                 {
@@ -198,8 +199,16 @@ namespace MinistryOfPower.EditorTools
                     float yaw = e.y;
                     if (yaw > 180f) yaw -= 360f;
                     artOrientOk = Mathf.Abs(e.x - 90f) < 2f && Mathf.Abs(yaw) < 5f;
+                    var sr = mapArtGo.GetComponent<SpriteRenderer>();
+                    artSpriteOk = sr != null && sr.sprite != null && mapArtGo.GetComponent<MeshRenderer>() == null;
+                    Vector3 bs = sr != null ? sr.bounds.size : Vector3.zero;
+                    float aspect = bs.z > 0.001f ? bs.x / bs.z : 0f;
                     sb.Append("mapArtEuler=").Append(e.ToString("F0"))
-                        .Append(" artOrientOk=").Append(artOrientOk).AppendLine();
+                        .Append(" artOrientOk=").Append(artOrientOk)
+                        .Append(" spriteRenderer=").Append(artSpriteOk)
+                        .Append(" boundsXZ=").Append(bs.x.ToString("0.00")).Append("x").Append(bs.z.ToString("0.00"))
+                        .Append(" aspect=").Append(aspect.ToString("0.000"))
+                        .AppendLine();
                 }
                 else
                 {
@@ -214,7 +223,8 @@ namespace MinistryOfPower.EditorTools
                           && distinctCodes >= UsaMapLayout.ExpectedStateCount
                           && UsaMapLayout.StateCount >= UsaMapLayout.ExpectedStateCount
                           && plants.Length >= 1 && cables >= 10 && bordersOk && artOk
-                          && orthoOk && panOk && zoomOk && pickOk && geoOk && artOrientOk;
+                          && orthoOk && panOk && zoomOk && pickOk && geoOk && artOrientOk
+                          && artSpriteOk;
                 sb.Append("bordersOk=").Append(bordersOk).AppendLine();
                 sb.Append("artOk=").Append(artOk).AppendLine();
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();
