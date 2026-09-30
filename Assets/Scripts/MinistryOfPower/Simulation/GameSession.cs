@@ -119,6 +119,8 @@ namespace MinistryOfPower.Simulation
         public bool AwaitingCrisisDecision => ActiveEvent != null && ActiveEvent.AwaitingDecision;
         public IReadOnlyList<BuildDefinitionConfig> BuildCatalog => _buildCatalog;
         public float OilShockMultiplier => Modifiers != null ? Modifiers.OilShockMultiplier : 1f;
+        /// <summary>Effective fossil lobby pressure 0..1 (scenario × difficulty).</summary>
+        public float FossilLobby01 => _effectiveLobby;
         public WeatherKind CurrentWeather { get; private set; } = WeatherKind.Clear;
         public float PrivateReserveMw { get; private set; }
         public float PrivateReserveQuarterlyCost { get; private set; }

@@ -225,7 +225,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1562683882}
-  - component: {fileID: 1562683881}
   - component: {fileID: 1562683880}
   - component: {fileID: 1562683884}
   - component: {fileID: 1562683883}
@@ -250,23 +249,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Runtime.MinistryGameRunner
   startingScenario: {fileID: 11400000, guid: dadfd921b015c1e44935b4a16d14fd0e, type: 2}
   alternateScenario: {fileID: 11400000, guid: ae3c04ff34a7f3b4fb45f0b0204a5eeb, type: 2}
-  legacyDeskView: {fileID: 0}
   paradoxHud: {fileID: 0}
   dayNight: {fileID: 0}
   autoStart: 1
-  preferParadoxChrome: 1
---- !u!114 &1562683881
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1562683879}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4ce5fced238821b4d9765d8b654c5542, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.MinistryDeskView
 --- !u!4 &1562683882
 Transform:
   m_ObjectHideFlags: 0

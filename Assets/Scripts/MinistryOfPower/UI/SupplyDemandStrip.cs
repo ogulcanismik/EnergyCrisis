@@ -4,11 +4,12 @@ using MinistryOfPower.Simulation;
 
 namespace MinistryOfPower.UI
 {
-    /// <summary>Simple 24h demand/supply strip for grey-box HUD.</summary>
+    /// <summary>24h demand/supply curve with playhead for the bottom dispatch panel.</summary>
     public sealed class SupplyDemandStrip : MonoBehaviour
     {
         private Image[] _demandBars;
         private Image[] _supplyBars;
+        private RectTransform _playhead;
         private Text _caption;
 
         public static SupplyDemandStrip Create(Transform parent, Vector2 amin, Vector2 amax)
@@ -21,18 +22,21 @@ namespace MinistryOfPower.UI
 
         private void Build(Transform parent)
         {
-            _caption = UiFactory.Label(parent, "Cap", UiFactory.Hex("C4A35A"), 11, FontStyle.Bold,
-                new Vector2(0.02f, 0.82f), new Vector2(0.98f, 0.98f));
-            _caption.text = "24h demand (amber) / supply (teal)";
+            _caption = UiFactory.Label(parent, "Cap", UiFactory.Hex("C4A35A"), 12, FontStyle.Bold,
+                new Vector2(0.01f, 0.86f), new Vector2(0.99f, 0.99f));
+            _caption.text = "24h load (amber) / supply (teal)";
             _demandBars = new Image[24];
             _supplyBars = new Image[24];
             for (int i = 0; i < 24; i++)
             {
-                float x0 = i / 24f;
-                float x1 = (i + 1) / 24f;
-                _demandBars[i] = UiFactory.Panel(parent, "D" + i, new Vector2(x0, 0.08f), new Vector2(x1, 0.4f), UiFactory.Hex("8B6914"));
-                _supplyBars[i] = UiFactory.Panel(parent, "S" + i, new Vector2(x0, 0.42f), new Vector2(x1, 0.78f), UiFactory.Hex("2F6B5A"));
+                float x0 = 0.01f + i / 24f * 0.98f;
+                float x1 = 0.01f + (i + 1) / 24f * 0.98f;
+                _demandBars[i] = UiFactory.Panel(parent, "D" + i, new Vector2(x0, 0.06f), new Vector2(x1 - 0.002f, 0.42f), UiFactory.Hex("8B6914"));
+                _supplyBars[i] = UiFactory.Panel(parent, "S" + i, new Vector2(x0, 0.44f), new Vector2(x1 - 0.002f, 0.82f), UiFactory.Hex("2F6B5A"));
             }
+
+            var ph = UiFactory.Panel(parent, "Playhead", new Vector2(0.01f, 0.04f), new Vector2(0.02f, 0.84f), UiFactory.Hex("E7DCC8"));
+            _playhead = ph.rectTransform;
         }
 
         public void Render(GameSession session)
@@ -46,14 +50,27 @@ namespace MinistryOfPower.UI
 
             for (int i = 0; i < 24; i++)
             {
-                float dh = Mathf.Clamp01(session.DayDemandCurve[i] / max) * 0.32f + 0.08f;
-                float sh = Mathf.Clamp01(session.DaySupplyCurve[i] / max) * 0.32f + 0.08f;
-                SetBar(_demandBars[i], 0.08f, dh);
-                SetBar(_supplyBars[i], 0.42f, 0.42f + sh);
+                float dh = Mathf.Clamp01(session.DayDemandCurve[i] / max) * 0.34f + 0.06f;
+                float sh = Mathf.Clamp01(session.DaySupplyCurve[i] / max) * 0.34f + 0.06f;
+                SetBar(_demandBars[i], 0.06f, dh);
+                SetBar(_supplyBars[i], 0.44f, 0.44f + sh);
             }
 
             float hour = session.Clock.DayFraction * 24f;
-            _caption.text = $"24h strip · hour ~{hour:0.0} · dem {session.LastReport.DemandMw:0} / sup {session.LastReport.SupplyMw:0} MW";
+            float t = Mathf.Clamp01(session.Clock.DayFraction);
+            float x = 0.01f + t * 0.98f;
+            _playhead.anchorMin = new Vector2(x, 0.04f);
+            _playhead.anchorMax = new Vector2(Mathf.Min(x + 0.008f, 0.99f), 0.84f);
+
+            float margin = session.LastReport.SupplyMw - session.LastReport.DemandMw;
+            string peak = IsPeakHour(hour) ? "PEAK" : "off-peak";
+            _caption.text =
+                $"24h dispatch · {hour:0.0}h ({peak}) · dem {session.LastReport.DemandMw:0} / sup {session.LastReport.SupplyMw:0} · margin {margin:+0;-0;0} MW";
+        }
+
+        private static bool IsPeakHour(float hour)
+        {
+            return (hour >= 7f && hour <= 10f) || (hour >= 17f && hour <= 21f);
         }
 
         private static void SetBar(Image img, float yMin, float yMax)

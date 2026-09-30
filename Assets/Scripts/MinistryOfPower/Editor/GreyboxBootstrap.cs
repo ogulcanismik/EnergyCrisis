@@ -63,9 +63,19 @@ namespace MinistryOfPower.EditorTools
             if (root.GetComponent<ParadoxChromeHud>() == null) root.AddComponent<ParadoxChromeHud>();
             if (root.GetComponent<DayNightWeatherController>() == null) root.AddComponent<DayNightWeatherController>();
 
-            // Disable legacy desk if present
-            var legacy = root.GetComponent<MinistryDeskView>();
-            if (legacy != null) legacy.enabled = false;
+            // Paradox chrome is the only desk HUD — strip any leftover diegetic desk.
+            foreach (var mb in root.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "MinistryDeskView")
+                {
+                    Object.DestroyImmediate(mb);
+                }
+            }
+
+            Transform leftoverCanvas = root.transform.Find("MinistryDeskCanvas");
+            if (leftoverCanvas != null) Object.DestroyImmediate(leftoverCanvas.gameObject);
 
             ScenarioDefinition usa = AssetDatabase.LoadAssetAtPath<ScenarioDefinition>("Assets/Data/Scenarios/Scenario_FederalHighBudget.asset");
             ScenarioDefinition sun = AssetDatabase.LoadAssetAtPath<ScenarioDefinition>("Assets/Data/Scenarios/Scenario_SunRichLowBudget.asset");
@@ -73,7 +83,6 @@ namespace MinistryOfPower.EditorTools
             so.FindProperty("startingScenario").objectReferenceValue = usa;
             so.FindProperty("alternateScenario").objectReferenceValue = sun;
             so.FindProperty("autoStart").boolValue = true;
-            so.FindProperty("preferParadoxChrome").boolValue = true;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.MarkSceneDirty(scene);

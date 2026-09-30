@@ -2,6 +2,9 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using MinistryOfPower.Runtime;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace MinistryOfPower.UI
 {
@@ -69,9 +72,24 @@ namespace MinistryOfPower.UI
                 return;
             }
 
+            Vector2 mouse = ReadMouseScreenPosition();
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                _canvas.transform as RectTransform, Input.mousePosition, null, out Vector2 local);
+                _canvas.transform as RectTransform, mouse, null, out Vector2 local);
             _panel.anchoredPosition = local + new Vector2(12f, -12f);
+        }
+
+        private static Vector2 ReadMouseScreenPosition()
+        {
+#if ENABLE_INPUT_SYSTEM
+            Mouse mouse = Mouse.current;
+            if (mouse != null) return mouse.position.ReadValue();
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+            try { return Input.mousePosition; }
+            catch (System.InvalidOperationException) { return Vector2.zero; }
+#else
+            return Vector2.zero;
+#endif
         }
     }
 

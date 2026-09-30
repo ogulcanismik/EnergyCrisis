@@ -20,11 +20,9 @@ namespace MinistryOfPower.Runtime
 
         [SerializeField] private ScenarioDefinition startingScenario;
         [SerializeField] private ScenarioDefinition alternateScenario;
-        [SerializeField] private MinistryDeskView legacyDeskView;
         [SerializeField] private ParadoxChromeHud paradoxHud;
         [SerializeField] private DayNightWeatherController dayNight;
         [SerializeField] private bool autoStart = true;
-        [SerializeField] private bool preferParadoxChrome = true;
 
         private readonly GameSession _session = new GameSession();
         private float _dayAccumulator;
@@ -36,16 +34,17 @@ namespace MinistryOfPower.Runtime
 
         private void Awake()
         {
-            if (legacyDeskView == null) legacyDeskView = GetComponent<MinistryDeskView>();
+            // Guard against stale runtime leftover from the deleted diegetic desk.
+            Transform leftover = transform.Find("MinistryDeskCanvas");
+            if (leftover != null)
+            {
+                Destroy(leftover.gameObject);
+            }
+
             if (paradoxHud == null) paradoxHud = GetComponent<ParadoxChromeHud>();
             if (dayNight == null) dayNight = GetComponent<DayNightWeatherController>();
 
-            if (preferParadoxChrome)
-            {
-                if (paradoxHud == null) paradoxHud = gameObject.AddComponent<ParadoxChromeHud>();
-                if (legacyDeskView != null) legacyDeskView.enabled = false;
-            }
-
+            if (paradoxHud == null) paradoxHud = gameObject.AddComponent<ParadoxChromeHud>();
             if (dayNight == null) dayNight = gameObject.AddComponent<DayNightWeatherController>();
         }
 
@@ -139,11 +138,7 @@ namespace MinistryOfPower.Runtime
 
         private void WireUi()
         {
-            if (paradoxHud == null || !preferParadoxChrome)
-            {
-                if (legacyDeskView != null) legacyDeskView.enabled = true;
-                return;
-            }
+            if (paradoxHud == null) return;
 
             paradoxHud.Bind(
                 () => _session,
