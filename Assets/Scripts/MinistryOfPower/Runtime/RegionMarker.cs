@@ -63,12 +63,15 @@ namespace MinistryOfPower.Runtime
 
         private void OnMouseEnter()
         {
+            // Invisible pick meshes (prototype PNG art mode) skip hover wash.
+            if (baseFill.a < 0.05f) return;
             var r = GetComponent<Renderer>();
             if (r != null) r.material.color = Color.Lerp(baseFill, Color.white, 0.25f);
         }
 
         private void OnMouseExit()
         {
+            if (baseFill.a < 0.05f) return;
             var r = GetComponent<Renderer>();
             if (r != null) r.material.color = baseFill;
         }

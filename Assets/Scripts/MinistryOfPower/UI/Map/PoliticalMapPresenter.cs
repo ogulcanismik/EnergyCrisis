@@ -1,16 +1,20 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using MinistryOfPower.Runtime;
 using MinistryOfPower.Simulation;
 
 namespace MinistryOfPower.UI.Map
 {
     /// <summary>
-    /// Paradox political-map presenter: 50 USA states, interconnects, plant pins.
-    /// Presentation only — simulation stays in GameSession / RegionCatalog (3 RegionIds).
+    /// Paradox political-map presenter: prototype PNG ground + invisible 50-state pick meshes,
+    /// soft interconnects, plant pins. Presentation only — sim stays on RegionId.
     /// </summary>
     public sealed class PoliticalMapPresenter : MonoBehaviour
     {
         [SerializeField] private bool sunRichTint;
+        [SerializeField] private Texture2D prototypeMapTexture;
 
         private Transform _root;
         private Transform _plantRoot;
@@ -83,7 +87,6 @@ namespace MinistryOfPower.UI.Map
                 Vector3 basePos = UsaMapLayout.PlantAnchor(p.Region, counts[r]);
                 float ang = counts[r] * 0.85f;
                 counts[r]++;
-                // Keep markers near state centroid; small orbit so stacks stay readable.
                 float radius = 0.35f + Mathf.Min(counts[r] - 1, 4) * 0.12f;
                 Vector3 pos = basePos + new Vector3(Mathf.Cos(ang) * radius, 0f, Mathf.Sin(ang) * radius);
 
@@ -115,7 +118,15 @@ namespace MinistryOfPower.UI.Map
                                       ?? Shader.Find("Universal Render Pipeline/Unlit")
                                       ?? Shader.Find("Standard"));
 
-            BuildOcean();
+            if (UsaMapLayout.UsePrototypeArt)
+            {
+                BuildPrototypeArt();
+            }
+            else
+            {
+                BuildOcean();
+            }
+
             BuildStates();
             BuildCorridors();
             RefreshLabels(force: true);
@@ -134,6 +145,56 @@ namespace MinistryOfPower.UI.Map
         {
             GameObject go = GameObject.Find(name);
             if (go != null) Destroy(go);
+        }
+
+        private void BuildPrototypeArt()
+        {
+            Texture2D tex = prototypeMapTexture != null ? prototypeMapTexture : LoadPrototypeTexture();
+            if (tex == null)
+            {
+                Debug.LogWarning("PoliticalMapPresenter: prototype map texture missing; falling back to ocean plate.");
+                BuildOcean();
+                return;
+            }
+
+            var art = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            art.name = "MapArt";
+            art.transform.SetParent(_root, false);
+            // Face +Y toward the top-down map camera.
+            art.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
+            art.transform.position = new Vector3(
+                UsaMapLayout.ArtWorldCenter.x,
+                UsaMapLayout.ArtHeight,
+                UsaMapLayout.ArtWorldCenter.y);
+            art.transform.localScale = new Vector3(
+                UsaMapLayout.ArtWorldSize.x,
+                UsaMapLayout.ArtWorldSize.y,
+                1f);
+
+            var col = art.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var mr = art.GetComponent<MeshRenderer>();
+            Shader unlit = Shader.Find("Universal Render Pipeline/Unlit")
+                           ?? Shader.Find("Unlit/Texture")
+                           ?? Shader.Find("Sprites/Default")
+                           ?? Shader.Find("Standard");
+            var mat = new Material(unlit);
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+            mat.color = Color.white;
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+        }
+
+        private static Texture2D LoadPrototypeTexture()
+        {
+#if UNITY_EDITOR
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(UsaMapLayout.PrototypeArtPath);
+#else
+            return Resources.Load<Texture2D>("Map/usa-map-prototype");
+#endif
         }
 
         private void BuildOcean()
@@ -162,6 +223,8 @@ namespace MinistryOfPower.UI.Map
             _labelCodes = new string[n];
             _labelNames = new string[n];
 
+            bool artMode = UsaMapLayout.UsePrototypeArt;
+
             for (int i = 0; i < n; i++)
             {
                 UsaMapLayout.StatePoly poly = UsaMapLayout.States[i];
@@ -173,19 +236,45 @@ namespace MinistryOfPower.UI.Map
 
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = new Material(_sharedLit);
-                Color fill = UsaMapLayout.StateFill(poly.Code, sunRichTint);
+                // Invisible fills when PNG is the visible map; keep meshes for colliders.
+                Color fill = artMode
+                    ? new Color(0f, 0f, 0f, 0f)
+                    : UsaMapLayout.StateFill(poly.Code, sunRichTint);
                 mr.sharedMaterial.color = fill;
+                if (artMode)
+                {
+                    mr.enabled = false;
+                    mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    mr.receiveShadows = false;
+                }
 
                 var mc = go.AddComponent<MeshCollider>();
                 mc.sharedMesh = mf.sharedMesh;
 
+                // PNG has no Alaska — optional invisible inset pick; never draw fill/border/label.
+                bool skipAkVisual = artMode && poly.Code == "AK";
+                bool akPickOff = poly.Code == "AK" && !UsaMapLayout.AlaskaPickEnabled;
+                if (akPickOff) mc.enabled = false;
+
                 var marker = go.AddComponent<RegionMarker>();
                 marker.Configure(poly.Region, poly.Code, poly.FullName, fill);
+                if (akPickOff) marker.enabled = false;
 
-                BuildBorder(go.transform, poly);
-                _labels[i] = BuildLabel(go.transform, poly);
-                _labelCodes[i] = poly.Code;
-                _labelNames[i] = poly.FullName;
+                if (!artMode)
+                    BuildBorder(go.transform, poly);
+
+                if (!skipAkVisual)
+                {
+                    _labels[i] = BuildLabel(go.transform, poly);
+                    _labelCodes[i] = poly.Code;
+                    _labelNames[i] = poly.FullName;
+                }
+                else
+                {
+                    _labels[i] = null;
+                    _labelCodes[i] = poly.Code;
+                    _labelNames[i] = poly.FullName;
+                }
             }
         }
 
@@ -231,6 +320,9 @@ namespace MinistryOfPower.UI.Map
             corridorGo.transform.SetParent(_root, false);
             _corridorRoot = corridorGo.transform;
 
+            bool soft = UsaMapLayout.UsePrototypeArt;
+            Color softTint = soft ? new Color(0.78f, 0.7f, 0.38f, 0.28f) : default;
+
             for (int i = 0; i < UsaMapLayout.Corridors.Length; i++)
             {
                 UsaMapLayout.Corridor c = UsaMapLayout.Corridors[i];
@@ -241,10 +333,11 @@ namespace MinistryOfPower.UI.Map
                 lineGo.transform.SetParent(_corridorRoot, false);
                 var lr = lineGo.AddComponent<LineRenderer>();
                 lr.useWorldSpace = true;
-                lr.widthMultiplier = 0.07f;
+                lr.widthMultiplier = soft ? 0.035f : 0.07f;
                 lr.numCapVertices = 2;
                 lr.material = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Standard"));
-                lr.startColor = lr.endColor = c.Color;
+                Color col = soft ? softTint : c.Color;
+                lr.startColor = lr.endColor = col;
                 lr.positionCount = 2;
                 lr.SetPositions(new[] { a, b });
             }
@@ -287,6 +380,8 @@ namespace MinistryOfPower.UI.Map
         private void RebuildColors()
         {
             if (_root == null) return;
+            if (UsaMapLayout.UsePrototypeArt) return;
+
             Transform ocean = _root.Find("OceanBackdrop");
             if (ocean != null) ApplyColor(ocean.gameObject, UsaMapLayout.OceanFill(sunRichTint));
 

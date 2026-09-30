@@ -7,6 +7,7 @@ namespace MinistryOfPower.UI.Map
     /// Paradox-style continental USA political map: 50 states as selectable polygons.
     /// Simulation still uses RegionId (North/Coast/Desert); each state maps into one group.
     /// Coordinates are XZ map space (Y up). AK/HI are inset boxes.
+    /// Visible ground is the prototype PNG; state rings remain for invisible pick meshes.
     /// </summary>
     public static class UsaMapLayout
     {
@@ -24,6 +25,17 @@ namespace MinistryOfPower.UI.Map
         public const float FullNameOrthoThreshold = 8.5f;
 
         public static readonly Vector2 OceanSize = new Vector2(40f, 28f);
+
+        /// <summary>Prototype map art (480×360 CONUS + Hawaii; no Alaska in the PNG).</summary>
+        public const string PrototypeArtPath = "Assets/Art/Map/usa-map-prototype.png";
+        public static bool UsePrototypeArt = true;
+        /// <summary>World XZ size of the full PNG (4:3). Tuned so CONUS rings sit under painted states.</summary>
+        public static readonly Vector2 ArtWorldSize = new Vector2(26.2f, 19.65f);
+        /// <summary>World XZ center of the PNG quad.</summary>
+        public static readonly Vector2 ArtWorldCenter = new Vector2(-0.1f, -0.85f);
+        public const float ArtHeight = -0.01f;
+        /// <summary>PNG has no Alaska — keep an invisible pick inset (no fill/border draw).</summary>
+        public const bool AlaskaPickEnabled = true;
 
         public struct StatePoly
         {

@@ -99,6 +99,10 @@ namespace MinistryOfPower.EditorTools
                                   || (GameObject.Find("PoliticalMap") != null
                                       && GameObject.Find("PoliticalMap").transform.Find("States") != null);
                 bool legacyPlane = GameObject.Find("GreyboxMap") != null;
+                bool mapArt = GameObject.Find("MapArt") != null
+                              || (GameObject.Find("PoliticalMap") != null
+                                  && GameObject.Find("PoliticalMap").transform.Find("MapArt") != null);
+                bool ocean = GameObject.Find("OceanBackdrop") != null;
 
                 int distinctCodes = 0;
                 var seen = new System.Collections.Generic.HashSet<string>();
@@ -112,7 +116,10 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("camCtrl=").Append(camCtrl != null).AppendLine();
                 sb.Append("politicalGo=").Append(political).AppendLine();
                 sb.Append("statesRoot=").Append(statesRoot).AppendLine();
+                sb.Append("mapArt=").Append(mapArt).AppendLine();
+                sb.Append("oceanBackdrop=").Append(ocean).AppendLine();
                 sb.Append("legacyPlane=").Append(legacyPlane).AppendLine();
+                sb.Append("usePrototypeArt=").Append(UsaMapLayout.UsePrototypeArt).AppendLine();
                 sb.Append("states=").Append(regions.Length).AppendLine();
                 sb.Append("distinctStateCodes=").Append(distinctCodes).AppendLine();
                 sb.Append("layoutStateCount=").Append(UsaMapLayout.StateCount).AppendLine();
@@ -172,12 +179,16 @@ namespace MinistryOfPower.EditorTools
 
                 sb.Append("pickOk=").Append(pickOk).AppendLine();
 
+                bool bordersOk = UsaMapLayout.UsePrototypeArt ? borders == 0 : borders >= 50;
+                bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && !ocean);
                 bool ok = map != null && camCtrl != null && political && !legacyPlane
                           && regions.Length >= UsaMapLayout.ExpectedStateCount
                           && distinctCodes >= UsaMapLayout.ExpectedStateCount
                           && UsaMapLayout.StateCount >= UsaMapLayout.ExpectedStateCount
-                          && plants.Length >= 1 && cables >= 10 && borders >= 50
+                          && plants.Length >= 1 && cables >= 10 && bordersOk && artOk
                           && orthoOk && panOk && zoomOk && pickOk;
+                sb.Append("bordersOk=").Append(bordersOk).AppendLine();
+                sb.Append("artOk=").Append(artOk).AppendLine();
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();
                 Finish(sb.ToString());
             }
