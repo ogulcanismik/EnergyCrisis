@@ -16,14 +16,13 @@ namespace MinistryOfPower.Simulation
         {
             evt = null;
 
-            float oilShare = portfolio.OilLinkedShare();
-            float hydroShare = portfolio.FuelShare(FuelKind.Hydro);
-            float importDependence = modifiers.ImportMwBaseline <= 1f
-                ? 0f
-                : modifiers.ImportMwBaseline / (portfolio.TotalCapacityMw() + modifiers.ImportMwBaseline);
-            float storageShare = portfolio.FuelShare(FuelKind.Storage);
-            float peakerCover = portfolio.FossilShare() + storageShare;
-            float weatherShare = portfolio.FuelShare(FuelKind.Wind) + portfolio.FuelShare(FuelKind.Solar);
+            PortfolioSnapshot snap = portfolio.CaptureSnapshot();
+            float oilShare = snap.OilLinkedShare;
+            float hydroShare = snap.HydroShare;
+            float importDependence = snap.ImportDependence(modifiers != null ? modifiers.ImportMwBaseline : 0f);
+            float storageShare = snap.StorageShare;
+            float peakerCover = snap.PeakerCover;
+            float weatherShare = snap.WeatherShare;
 
             float wOil = 0.32f + oilShare * 0.48f;
             float wDrought = 0.14f + hydroShare * 0.85f;
@@ -209,7 +208,7 @@ namespace MinistryOfPower.Simulation
                 Body = body,
                 ExposureLabel = adequacyFirst ? "Adequacy" : "Affordability",
                 Exposure01 = (adequacyFirst ? meters.Adequacy : meters.Affordability) / 100f,
-                Severity01 = Clamp01(1f - (adequacyFirst ? meters.Adequacy : meters.Affordability) / 55f),
+                Severity01 = MathUtil.Clamp01(1f - (adequacyFirst ? meters.Adequacy : meters.Affordability) / 55f),
                 AwaitingDecision = true,
                 OffersLoadShed = adequacyFirst
             };
@@ -234,7 +233,7 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildOil(float oilShare, Season season, DeterministicRng rng)
         {
-            float severity = Clamp01(oilShare * 0.85f + rng.NextRange(0f, 0.25f));
+            float severity = MathUtil.Clamp01(oilShare * 0.85f + rng.NextRange(0f, 0.25f));
             string title;
             string body;
 
@@ -295,7 +294,7 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildDrought(float hydroShare, Season season, DeterministicRng rng)
         {
-            float severity = Clamp01(hydroShare * 1.1f + rng.NextRange(0f, 0.2f));
+            float severity = MathUtil.Clamp01(hydroShare * 1.1f + rng.NextRange(0f, 0.2f));
             string title;
             string body;
 
@@ -350,8 +349,8 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildHeatwave(float peakerCover, float storageShare, Season season, DeterministicRng rng)
         {
-            float vulnerability = Clamp01(1f - peakerCover * 0.85f - storageShare * 0.5f);
-            float severity = Clamp01(vulnerability * 0.9f + rng.NextRange(0f, 0.2f));
+            float vulnerability = MathUtil.Clamp01(1f - peakerCover * 0.85f - storageShare * 0.5f);
+            float severity = MathUtil.Clamp01(vulnerability * 0.9f + rng.NextRange(0f, 0.2f));
             string title;
             string body;
 
@@ -396,7 +395,7 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildImport(float importDependence, Season season, DeterministicRng rng)
         {
-            float severity = Clamp01(importDependence * 1.2f + rng.NextRange(0f, 0.2f));
+            float severity = MathUtil.Clamp01(importDependence * 1.2f + rng.NextRange(0f, 0.2f));
             string title;
             string body;
 
@@ -451,8 +450,8 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildColdSnap(float peakerCover, float storageShare, Season season, DeterministicRng rng)
         {
-            float vulnerability = Clamp01(1f - peakerCover * 0.9f - storageShare * 0.4f);
-            float severity = Clamp01(vulnerability * 0.85f + rng.NextRange(0f, 0.22f));
+            float vulnerability = MathUtil.Clamp01(1f - peakerCover * 0.9f - storageShare * 0.4f);
+            float severity = MathUtil.Clamp01(vulnerability * 0.85f + rng.NextRange(0f, 0.22f));
             if (season != Season.Winter && season != Season.Autumn) severity *= 0.55f;
 
             string title = season == Season.Winter
@@ -488,8 +487,8 @@ namespace MinistryOfPower.Simulation
 
         private static PendingEvent BuildStorm(float weatherShare, float importDependence, Season season, DeterministicRng rng)
         {
-            float exposure = Clamp01(weatherShare * 0.7f + importDependence * 0.35f);
-            float severity = Clamp01(exposure * 0.9f + rng.NextRange(0f, 0.2f));
+            float exposure = MathUtil.Clamp01(weatherShare * 0.7f + importDependence * 0.35f);
+            float severity = MathUtil.Clamp01(exposure * 0.9f + rng.NextRange(0f, 0.2f));
             string title = Pick(rng, "Grid Storm Outage", "Cyclone Line Damage", "Renewable Storm Cut");
             string body;
             if (exposure < 0.12f)
@@ -517,13 +516,6 @@ namespace MinistryOfPower.Simulation
                 Severity01 = severity,
                 AwaitingDecision = exposure >= 0.12f || severity > 0.32f
             };
-        }
-
-        private static float Clamp01(float value)
-        {
-            if (value < 0f) return 0f;
-            if (value > 1f) return 1f;
-            return value;
         }
     }
 }

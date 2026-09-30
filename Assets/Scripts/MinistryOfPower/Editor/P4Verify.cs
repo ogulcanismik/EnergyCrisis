@@ -178,9 +178,13 @@ namespace MinistryOfPower.EditorTools
                     sb.Append("yearReportY=").Append(easyS.LastYearReport.Year)
                         .Append(" adeqAvg=").Append(easyS.LastYearReport.AdequacyAvg.ToString("0.0")).AppendLine();
 
-                var save = easyS.CaptureSave(0);
+                var save = GameSessionSaveMapper.Capture(easyS, 0);
                 sb.Append("saveVersion=").Append(save.Version)
-                    .Append(" current=").Append(GameSaveData.CurrentVersion).AppendLine();
+                    .Append(" current=").Append(GameSaveData.CurrentVersion)
+                    .Append(" v3hist=").Append(save.EventHistory != null)
+                    .Append(" v3cab=").Append(save.TariffFreezeDays >= 0)
+                    .Append(" v3catalog=").Append(save.BuildCatalogIds != null && save.BuildCatalogIds.Count > 0)
+                    .AppendLine();
                 sb.AppendLine("P6 sim smoke OK");
 
                 sb.AppendLine("=== P7 SIM SMOKE ===");
@@ -216,7 +220,7 @@ namespace MinistryOfPower.EditorTools
                         .AppendLine();
                 }
 
-                GameSaveData contProbe = easyS.CaptureSave(0);
+                GameSaveData contProbe = GameSessionSaveMapper.Capture(easyS, 0);
                 bool saved = SaveGameSystem.TrySave(0, contProbe, out _);
                 SaveSlotMeta contMeta = SaveGameSystem.PeekSlot(0);
                 sb.Append("continueSubtitle=").Append(saved && contMeta.Occupied && !string.IsNullOrEmpty(contMeta.ScenarioName))

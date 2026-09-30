@@ -149,7 +149,7 @@ namespace MinistryOfPower.Runtime
 
         private void QuickSave(string reason)
         {
-            SaveGameSystem.TrySave(QuicksaveSlot, _session.CaptureSave(QuicksaveSlot), out string msg);
+            SaveGameSystem.TrySave(QuicksaveSlot, GameSessionSaveMapper.Capture(_session, QuicksaveSlot), out string msg);
             PushLog(reason + ": " + msg);
             paradoxHud?.FlashQuicksave();
             HandleTip("first_save");
@@ -216,7 +216,7 @@ namespace MinistryOfPower.Runtime
                 },
                 slot =>
                 {
-                    SaveGameSystem.TrySave(slot, _session.CaptureSave(slot), out string msg);
+                    SaveGameSystem.TrySave(slot, GameSessionSaveMapper.Capture(_session, slot), out string msg);
                     PushLog(slot == QuicksaveSlot ? "Quicksave: " + msg : msg);
                     if (slot == QuicksaveSlot) paradoxHud?.FlashQuicksave();
                     HandleTip("first_save");
@@ -349,7 +349,7 @@ namespace MinistryOfPower.Runtime
 
             PrototypeContentFactory.TryCreateById(data.ScenarioId, out _, out List<BuildDefinitionConfig> builds);
             if (builds.Count < 5) builds = PrototypeContentFactory.CreateFullCatalog();
-            _session.LoadFromSave(data, builds);
+            GameSessionSaveMapper.Apply(_session, data, builds);
             _session.SetSpeed(GameSpeed.Paused);
             _hourAccumulator = 0f;
             _lastRenderedHour = -1;

@@ -19,6 +19,27 @@ namespace MinistryOfPower.Simulation
 
         public IReadOnlyList<EventHistoryEntry> Entries => _entries;
 
+        public void Clear() => _entries.Clear();
+
+        public void Restore(IReadOnlyList<EventHistoryEntry> entries)
+        {
+            _entries.Clear();
+            if (entries == null) return;
+            int n = entries.Count < Cap ? entries.Count : Cap;
+            for (int i = 0; i < n; i++)
+            {
+                EventHistoryEntry e = entries[i];
+                if (e == null) continue;
+                _entries.Add(new EventHistoryEntry
+                {
+                    Title = e.Title,
+                    SeasonTag = e.SeasonTag,
+                    DateLabel = e.DateLabel,
+                    ChoiceSummary = e.ChoiceSummary
+                });
+            }
+        }
+
         public void Record(PendingEvent evt, GameClock clock, string choiceSummary = null)
         {
             if (evt == null) return;

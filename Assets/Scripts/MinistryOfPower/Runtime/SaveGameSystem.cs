@@ -21,11 +21,15 @@ namespace MinistryOfPower.Runtime
         public bool Occupied;
     }
 
+    /// <summary>
+    /// Persistable session blob. v3 adds crisis desk, cabinet timers, history,
+    /// year accumulators, mandate spark, and end-state flags.
+    /// </summary>
     [Serializable]
     public sealed class GameSaveData
     {
         /// <summary>Bump when save shape changes. Loaders tolerate missing fields via JsonUtility defaults.</summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
         public int Version = CurrentVersion;
         public int Slot;
         public string ScenarioId;
@@ -74,7 +78,48 @@ namespace MinistryOfPower.Runtime
         public int SelectedRegion;
         public List<PlantSave> Plants = new List<PlantSave>();
         public List<BuildSave> Builds = new List<BuildSave>();
+        /// <summary>Catalog definition ids in play order; honored on load when present.</summary>
         public List<string> BuildCatalogIds = new List<string>();
+
+        // --- v3 ---
+        public int MeterCrisisStreak;
+        public bool TariffFreezeActive;
+        public int TariffFreezeDays;
+        public bool EmergencyFossilActive;
+        public int EmergencyFossilDays;
+        public int CurrentWeather;
+        public bool IsGameOver;
+        public bool IsVictory;
+        public int LastYearForLedger;
+        public float YearAdeqSum;
+        public float YearAffSum;
+        public int YearSamples;
+        public float YearSpend;
+        public float YearBudgetAnchor;
+        public string YearBiggestEvent = "—";
+        public float YearBiggestSev;
+        public int YearEventCount;
+        public List<float> MandateSparkSamples = new List<float>();
+        public int MandateDaysSinceSample;
+        public bool HasActiveEvent;
+        public int ActiveEventKind;
+        public string ActiveEventTitle;
+        public string ActiveEventBody;
+        public string ActiveEventExposureLabel;
+        public float ActiveEventExposure01;
+        public float ActiveEventSeverity01;
+        public bool ActiveEventAwaiting;
+        public bool ActiveEventOffersLoadShed;
+        public List<EventHistorySave> EventHistory = new List<EventHistorySave>();
+    }
+
+    [Serializable]
+    public sealed class EventHistorySave
+    {
+        public string Title;
+        public string SeasonTag;
+        public string DateLabel;
+        public string ChoiceSummary;
     }
 
     [Serializable]
@@ -179,6 +224,7 @@ namespace MinistryOfPower.Runtime
             {
                 Directory.CreateDirectory(SaveRoot);
                 data.Slot = slot;
+                data.Version = GameSaveData.CurrentVersion;
                 File.WriteAllText(SlotPath(slot), JsonUtility.ToJson(data, true));
                 message = $"Saved to slot {slot + 1}.";
                 return true;

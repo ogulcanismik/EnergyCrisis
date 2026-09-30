@@ -34,9 +34,9 @@ namespace MinistryOfPower.Simulation
             DisplayName = displayName;
             Fuel = fuel;
             CapacityMw = capacityMw;
-            Availability = Clamp01(availability);
+            Availability = MathUtil.Clamp01(availability);
             VariableCostPerMwh = variableCostPerMwh;
-            OilExposure = Clamp01(oilExposure);
+            OilExposure = MathUtil.Clamp01(oilExposure);
             DefinitionId = definitionId;
             QuarterlyUpkeep = quarterlyUpkeep;
             DailyFuelUse = dailyFuelUse;
@@ -47,7 +47,7 @@ namespace MinistryOfPower.Simulation
 
         public void SetRegion(RegionId region) => Region = region;
 
-        public void SetFuelDerate(float derate) => FuelDerate = Clamp01(derate);
+        public void SetFuelDerate(float derate) => FuelDerate = MathUtil.Clamp01(derate);
 
         public void ClearFuelDerate() => FuelDerate = 1f;
 
@@ -61,12 +61,5 @@ namespace MinistryOfPower.Simulation
         public void Retire() => IsRetired = true;
 
         public void SetRetired(bool retired) => IsRetired = retired;
-
-        private static float Clamp01(float value)
-        {
-            if (value < 0f) return 0f;
-            if (value > 1f) return 1f;
-            return value;
-        }
     }
 }

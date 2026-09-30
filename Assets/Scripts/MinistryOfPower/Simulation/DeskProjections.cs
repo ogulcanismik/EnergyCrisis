@@ -138,7 +138,7 @@ namespace MinistryOfPower.Simulation
             if (storage < 0.05f) risk += 0.15f;
             if (reserveRatio < 0.12f) risk += 0.2f;
             if (session.Modifiers.ImportDisruptionDaysRemaining > 0) risk += 0.2f;
-            risk = Clamp01(risk);
+            risk = MathUtil.Clamp01(risk);
 
             string label = risk > 0.7f ? "HIGH" : risk > 0.45f ? "ELEVATED" : "MANAGEABLE";
             Sb.Append("· Winter / peak risk: ").Append(label)
@@ -223,22 +223,16 @@ namespace MinistryOfPower.Simulation
         private static void AppendExposure(PlantPortfolio portfolio, DayModifiers mods)
         {
             if (portfolio == null) return;
-            Sb.Append("· Exposure oil/gas ").Append((portfolio.OilLinkedShare() * 100f).ToString("0"))
-                .Append("% · hydro ").Append((portfolio.FuelShare(FuelKind.Hydro) * 100f).ToString("0")).Append('%');
+            PortfolioSnapshot snap = portfolio.CaptureSnapshot();
+            Sb.Append("· Exposure oil/gas ").Append((snap.OilLinkedShare * 100f).ToString("0"))
+                .Append("% · hydro ").Append((snap.HydroShare * 100f).ToString("0")).Append('%');
             if (mods != null && mods.ImportMwBaseline > 1f)
             {
-                float dep = mods.ImportMwBaseline / (portfolio.TotalCapacityMw() + mods.ImportMwBaseline);
+                float dep = snap.ImportDependence(mods.ImportMwBaseline);
                 Sb.Append(" · import ").Append((dep * 100f).ToString("0")).Append('%');
             }
 
             Sb.Append('\n');
-        }
-
-        private static float Clamp01(float v)
-        {
-            if (v < 0f) return 0f;
-            if (v > 1f) return 1f;
-            return v;
         }
     }
 }

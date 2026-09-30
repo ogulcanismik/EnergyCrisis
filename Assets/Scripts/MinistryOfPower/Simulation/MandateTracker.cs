@@ -23,6 +23,20 @@ namespace MinistryOfPower.Simulation
         private int _daysSinceSample;
 
         public IReadOnlyList<float> CleanSamples => _cleanSamples;
+        public int DaysSinceSample => _daysSinceSample;
+
+        public void RestoreSpark(IReadOnlyList<float> samples, int daysSinceSample)
+        {
+            _cleanSamples.Clear();
+            if (samples != null)
+            {
+                int n = samples.Count < SparkSampleCap ? samples.Count : SparkSampleCap;
+                for (int i = 0; i < n; i++)
+                    _cleanSamples.Add(samples[i]);
+            }
+
+            _daysSinceSample = daysSinceSample < 0 ? 0 : daysSinceSample;
+        }
 
         public void TickDay(SeatMeters m)
         {
@@ -66,7 +80,7 @@ namespace MinistryOfPower.Simulation
         {
             float elapsed = clock.Year - startYear + clock.DayIndex / (float)GameClock.DaysPerYear;
             if (elapsed < 0f) elapsed = 0f;
-            return Clamp01(elapsed / CampaignYears);
+            return MathUtil.Clamp01(elapsed / CampaignYears);
         }
 
         public bool MeetsWinMeters(SeatMeters m)
@@ -85,11 +99,11 @@ namespace MinistryOfPower.Simulation
         /// <summary>0..1 composite for HUD (transition weight highest).</summary>
         public float Progress01(SeatMeters m, GameClock clock, int startYear)
         {
-            float t = Clamp01(m.Transition / WinTransition);
-            float aff = Clamp01(m.Affordability / WinAffordability);
-            float adeq = Clamp01(m.Adequacy / WinAdequacy);
+            float t = MathUtil.Clamp01(m.Transition / WinTransition);
+            float aff = MathUtil.Clamp01(m.Affordability / WinAffordability);
+            float adeq = MathUtil.Clamp01(m.Adequacy / WinAdequacy);
             float time = YearsElapsed01(clock, startYear);
-            return Clamp01(t * 0.45f + aff * 0.2f + adeq * 0.15f + time * 0.2f);
+            return MathUtil.Clamp01(t * 0.45f + aff * 0.2f + adeq * 0.15f + time * 0.2f);
         }
 
         public string FormatHud(GameSession s)
@@ -156,11 +170,5 @@ namespace MinistryOfPower.Simulation
             return sb.ToString();
         }
 
-        private static float Clamp01(float v)
-        {
-            if (v < 0f) return 0f;
-            if (v > 1f) return 1f;
-            return v;
-        }
     }
 }

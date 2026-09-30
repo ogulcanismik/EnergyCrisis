@@ -146,6 +146,52 @@ namespace MinistryOfPower.Simulation
             return amount / total;
         }
 
+        /// <summary>Single portfolio walk for event-weight / exposure aggregates.</summary>
+        public PortfolioSnapshot CaptureSnapshot()
+        {
+            float total = 0f;
+            float oilLinked = 0f;
+            float hydro = 0f;
+            float storage = 0f;
+            float fossil = 0f;
+            float wind = 0f;
+            float solar = 0f;
+
+            for (int i = 0; i < _plants.Count; i++)
+            {
+                PlantInstance p = _plants[i];
+                if (p.IsRetired) continue;
+
+                float mw = p.CapacityMw;
+                total += mw;
+                if (p.Fuel.IsOilLinked())
+                    oilLinked += mw * (0.5f + 0.5f * p.OilExposure);
+                if (p.Fuel.IsFossil()) fossil += mw;
+
+                switch (p.Fuel)
+                {
+                    case FuelKind.Hydro: hydro += mw; break;
+                    case FuelKind.Storage: storage += mw; break;
+                    case FuelKind.Wind: wind += mw; break;
+                    case FuelKind.Solar: solar += mw; break;
+                }
+            }
+
+            if (total <= 0.001f)
+            {
+                return new PortfolioSnapshot(0f, 0f, 0f, 0f, 0f, 0f, 0f);
+            }
+
+            return new PortfolioSnapshot(
+                total,
+                oilLinked / total,
+                hydro / total,
+                storage / total,
+                fossil / total,
+                wind / total,
+                solar / total);
+        }
+
         public float TransitionProgress01()
         {
             float total = TotalCapacityMw();
