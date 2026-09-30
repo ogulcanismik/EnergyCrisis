@@ -113,8 +113,12 @@ namespace MinistryOfPower.EditorTools
             var dealBrief = FindGo(chrome, "DealBriefToggle");
             var escBtn = FindGo(chrome, "EscBtn");
             var ordersPanel = FindGo(chrome, "OrdersPanel");
+            var ordersToggle = FindGo(chrome, "OrdersToggle");
             var chartMix = FindGo(chrome, "Chart_Mix");
             var chartBudget = FindGo(chrome, "Chart_Budget");
+            var chartDrawer = FindGo(chrome, "ChartDrawer");
+            var duckBtn = FindGo(chrome, "DuckBtn");
+            var duckDrawer = FindGo(chrome, "DuckDrawer");
             var tabRow = FindGo(chrome, "TabRow");
             var constructionRail = FindGo(chrome, "M_Construction");
             var dealsRail = FindGo(chrome, "M_Deals");
@@ -150,6 +154,22 @@ namespace MinistryOfPower.EditorTools
                 .Append(" tickGone=").Append(tick == null || !tick.gameObject.activeInHierarchy).AppendLine();
             sb.Append("escBtn=").Append(escBtn != null).Append(" ordersPanel=").Append(ordersPanel != null).AppendLine();
             sb.Append("chartMix=").Append(chartMix != null).Append(" chartBudget=").Append(chartBudget != null).AppendLine();
+            sb.Append("duckBtn=").Append(duckBtn != null).Append(" duckDrawer=").Append(duckDrawer != null).AppendLine();
+            bool chartSquare = false;
+            if (chartMix != null)
+            {
+                var crt = chartMix.GetComponent<RectTransform>();
+                if (crt != null)
+                {
+                    float w = crt.anchorMax.x - crt.anchorMin.x;
+                    float h = crt.anchorMax.y - crt.anchorMin.y;
+                    chartSquare = w <= 0.05f && h <= 0.05f && Mathf.Abs(w - h) < 0.02f;
+                    sb.Append("chartMixW=").Append(w.ToString("0.000"))
+                        .Append(" chartMixH=").Append(h.ToString("0.000"))
+                        .Append(" chartSquare=").Append(chartSquare).AppendLine();
+                }
+            }
+
             sb.Append("tabRow=").Append(tabRow != null).Append(" leftTabs=")
                 .Append(constructionRail != null).Append('/')
                 .Append(dealsRail != null).Append('/')
@@ -246,44 +266,110 @@ namespace MinistryOfPower.EditorTools
                 narrowOk = narrowOk && btnW <= 0.035f;
             }
 
-            // Exclusive menus: Construction, then Budget chart drawer, then Construction again.
+            // Verbs → left panel; charts → ChartDrawer (not left rail).
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
             bool constructionOpen = side != null && side.activeInHierarchy
                                     && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Construction;
-            hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Budget);
-            bool budgetPanel = side != null && side.activeInHierarchy
-                               && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Budget;
+            hud.ForceOpenChart(ParadoxChromeHud.MenuId.Budget);
+            bool budgetChartDrawer = chartDrawer != null && chartDrawer.activeInHierarchy
+                                     && hud.DebugOpenChart == ParadoxChromeHud.MenuId.Budget
+                                     && (side == null || !side.activeInHierarchy
+                                         || hud.DebugOpenMenu != ParadoxChromeHud.MenuId.Budget);
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Cabinet);
             bool cabinetPanel = side != null && side.activeInHierarchy
                                 && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Cabinet;
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.Construction);
             bool constructionAgain = side != null && side.activeInHierarchy
                                      && hud.DebugOpenMenu == ParadoxChromeHud.MenuId.Construction;
+            // Orders thin tab on RIGHT edge (not left).
+            bool ordersEdgeTab = false;
+            if (ordersToggle != null)
+            {
+                var ort = ordersToggle.GetComponent<RectTransform>();
+                if (ort != null)
+                {
+                    float w = ort.anchorMax.x - ort.anchorMin.x;
+                    float h = ort.anchorMax.y - ort.anchorMin.y;
+                    ordersEdgeTab = ort.anchorMax.x >= 0.995f && ort.anchorMin.x >= 0.95f
+                                    && w <= 0.04f && h >= 0.20f;
+                }
+            }
+
+            // Verb trigger chips stay readable; opened SidePanel is the compact footprint.
+            bool verbButtonsReadable = false;
+            if (constructionRail != null)
+            {
+                var crt = constructionRail.GetComponent<RectTransform>();
+                if (crt != null)
+                {
+                    float w = crt.anchorMax.x - crt.anchorMin.x;
+                    float h = crt.anchorMax.y - crt.anchorMin.y;
+                    verbButtonsReadable = w >= 0.07f && h >= 0.028f;
+                }
+            }
+
+            bool verbPanelCompact = false;
+            if (side != null)
+            {
+                var srt = side.GetComponent<RectTransform>();
+                if (srt != null)
+                {
+                    float w = srt.anchorMax.x - srt.anchorMin.x;
+                    float h = srt.anchorMax.y - srt.anchorMin.y;
+                    verbPanelCompact = w <= 0.34f && h <= 0.70f && srt.anchorMin.y >= 0.20f;
+                }
+            }
+
             sb.Append("constructionOpen=").Append(constructionOpen)
-                .Append(" budgetPanel=").Append(budgetPanel)
+                .Append(" budgetChartDrawer=").Append(budgetChartDrawer)
                 .Append(" cabinetPanel=").Append(cabinetPanel)
                 .Append(" constructionAgain=").Append(constructionAgain).AppendLine();
+            sb.Append("ordersEdgeTab=").Append(ordersEdgeTab)
+                .Append(" verbButtonsReadable=").Append(verbButtonsReadable)
+                .Append(" verbPanelCompact=").Append(verbPanelCompact)
+                .Append(" chartDrawer=").Append(chartDrawer != null).AppendLine();
 
-            bool exclusiveOk = constructionOpen && budgetPanel && cabinetPanel && constructionAgain;
+            bool exclusiveOk = constructionOpen && budgetChartDrawer && cabinetPanel && constructionAgain
+                               && ordersEdgeTab && verbButtonsReadable && verbPanelCompact;
 
             bool chartLive = false;
             int curveLen = session?.DayDemandCurve != null ? session.DayDemandCurve.Length : 0;
             sb.Append("dayCurveLen=").Append(curveLen).AppendLine();
+            // 24h strip lives in DuckDrawer — open it for the live check.
+            if (duckDrawer != null) duckDrawer.SetActive(true);
             if (dispatchChart != null && session != null)
             {
                 var strip = chrome.GetComponentInChildren<SupplyDemandStrip>(true);
                 strip?.Render(session);
-                chartLive = dispatchChart.isActiveAndEnabled && curveLen >= 24;
+                chartLive = dispatchChart.gameObject.activeInHierarchy && curveLen >= 24;
             }
 
             sb.Append("chartLive=").Append(chartLive).AppendLine();
+            if (duckDrawer != null) duckDrawer.SetActive(false);
+
+            bool stripNotPermanentBottom = true;
+            var bottom = FindGo(chrome, "Bottom");
+            if (bottom != null)
+            {
+                foreach (var t in bottom.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name == "DayStrip")
+                    {
+                        stripNotPermanentBottom = false;
+                        break;
+                    }
+                }
+            }
+
+            sb.Append("stripNotPermanentBottom=").Append(stripNotPermanentBottom).AppendLine();
 
             hud.ForceOpenMenu(ParadoxChromeHud.MenuId.None);
 
             bool tickGone = tick == null || !tick.gameObject.activeInHierarchy;
             bool ok = date != null && tickGone && spdMinus != null && spdPlus != null && spdLabel != null
-                      && escBtn != null && ordersPanel != null
-                      && chartMix != null && chartBudget != null
+                      && escBtn != null && ordersPanel != null && ordersToggle != null
+                      && chartMix != null && chartBudget != null && chartSquare && chartDrawer != null
+                      && duckBtn != null && duckDrawer != null && stripNotPermanentBottom
                       && tabRow != null
                       && constructionRail != null && dealsRail != null
                       && cabinetRail != null && subsidiesRail != null

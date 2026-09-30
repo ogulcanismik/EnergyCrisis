@@ -47,9 +47,9 @@ namespace MinistryOfPower.Data
         [Range(0.70f, 0.88f)]
         public float rightDrawerMinX = 0.78f;
 
-        [Tooltip("Normalized height of the thin bottom charts/24h peek strip.")]
-        [Range(0.05f, 0.12f)]
-        public float chromeBottomHeight = 0.072f;
+        [Tooltip("Normalized height of the thin bottom chart-chip strip.")]
+        [Range(0.045f, 0.08f)]
+        public float chromeBottomHeight = 0.052f;
 
         [Header("UI — Charts & type")]
         [Tooltip("Normalized height band for report chart slots inside the left panel.")]

@@ -10,9 +10,9 @@ using MinistryOfPower.Simulation;
 namespace MinistryOfPower.UI
 {
     /// <summary>
-    /// Wireframe HUD shell: top vitals + time/speeds, exclusive left tabs
-    /// (Construction / Deals / Cabinet / Subsidies), right ESC + Orders,
-    /// bottom-left charts buttons + thin 24h peek. Map lenses stubbed/omitted.
+    /// Wireframe HUD shell: top vitals + time/speeds + ESC, verb tabs with compact
+    /// left content panels, right-edge Orders tab, bottom chart chips → drawers,
+    /// right 24h duck drawer. Map lenses stubbed.
     /// </summary>
     public sealed class ParadoxChromeHud : MonoBehaviour
     {
@@ -74,6 +74,14 @@ namespace MinistryOfPower.UI
         private Text _yearTitle;
         private Text _yearBody;
         private SupplyDemandStrip _strip;
+        private GameObject _duckDrawer;
+        private Text _duckToggleLabel;
+        private bool _duckOpen;
+        private GameObject _chartDrawer;
+        private Text _chartTitle;
+        private Text _chartBody;
+        private MenuId _chartMenu = MenuId.None;
+        private MenuId _panelDirtyChart = (MenuId)(-1);
         private ReportChartsHost _reportCharts;
         private GameObject _buildActions;
         private GameObject _buildFilterBar;
@@ -90,7 +98,7 @@ namespace MinistryOfPower.UI
         private BuildFilter _buildFilter = BuildFilter.All;
         private bool _buildFiltersOpen;
         private bool _dealBriefOpen;
-        private bool _ordersOpen = true;
+        private bool _ordersOpen;
         private Season? _lastSeason;
         private float _seasonBannerTimer;
         private RegionId? _openRegion;
@@ -201,7 +209,7 @@ namespace MinistryOfPower.UI
             {
                 _speedText.text = s.IsGameOver ? "SACKED" : s.IsVictory ? "WIN" : GameClock.FormatPlaySpeed(s.Clock.Speed);
             }
-            _strip?.Render(s);
+            if (_duckOpen) _strip?.Render(s);
         }
 
         public void ShowEvent(PendingEvent evt)
@@ -252,15 +260,53 @@ namespace MinistryOfPower.UI
         public void ForceOpenMenu(MenuId id)
         {
             EnsureUi();
-            _openMenu = id;
+            if (IsChartMenu(id))
+            {
+                ForceOpenChart(id);
+                return;
+            }
+
+            _openMenu = IsVerbMenu(id) ? id : MenuId.None;
             if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
             if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
+            if (_openMenu != MenuId.None)
+            {
+                _ordersOpen = false;
+                if (_ordersPanel != null) _ordersPanel.SetActive(false);
+            }
+
+            Render();
+        }
+
+        public void ForceOpenChart(MenuId id)
+        {
+            EnsureUi();
+            _chartMenu = IsChartMenu(id) ? id : MenuId.None;
+            if (_chartMenu != MenuId.None)
+            {
+                _duckOpen = false;
+                if (_duckDrawer != null) _duckDrawer.SetActive(false);
+                _ordersOpen = false;
+                if (_ordersPanel != null) _ordersPanel.SetActive(false);
+            }
+
+            _panelDirtyChart = (MenuId)(-1);
             Render();
         }
 
         public string DebugPanelTitle => _panelTitle != null ? _panelTitle.text : "";
         public string DebugPanelBody => _panelBody != null ? _panelBody.text : "";
         public MenuId DebugOpenMenu => _openMenu;
+        public MenuId DebugOpenChart => _chartMenu;
+        public bool DebugOrdersOpen => _ordersOpen;
+        public bool DebugDuckOpen => _duckOpen;
+
+        private static bool IsVerbMenu(MenuId id) =>
+            id == MenuId.Construction || id == MenuId.Deals || id == MenuId.Policy || id == MenuId.Cabinet;
+
+        private static bool IsChartMenu(MenuId id) =>
+            id == MenuId.EnergyMix || id == MenuId.Resources || id == MenuId.Mandate
+            || id == MenuId.Budget || id == MenuId.History;
 
         public string DebugBuildTooltip(string buildId)
         {
@@ -382,19 +428,31 @@ namespace MinistryOfPower.UI
             MaybeAnnounceSeason(s);
             RefreshBuildCatalogTooltips(s);
             RefreshOrdersSummary(s);
-            _strip?.Render(s);
+            if (_duckDrawer != null) _duckDrawer.SetActive(_duckOpen);
+            if (_duckToggleLabel != null)
+                _duckToggleLabel.text = _duckOpen ? "24h▴" : "24h";
+            if (_duckOpen) _strip?.Render(s);
+            if (_ordersPanel != null) _ordersPanel.SetActive(_ordersOpen);
 
             int day = s.Clock.AbsoluteDay;
-            if (_openMenu != _panelDirtyMenu || day != _panelDirtyDay)
+            bool panelDirty = _openMenu != _panelDirtyMenu || day != _panelDirtyDay;
+            bool chartDirty = _chartMenu != _panelDirtyChart || day != _panelDirtyDay;
+            if (panelDirty)
             {
                 _panelDirtyMenu = _openMenu;
                 _panelDirtyDay = day;
                 RefreshSidePanel(s);
             }
-            else if (_openMenu != MenuId.None)
+            else if (_openMenu == MenuId.Construction)
             {
-                // Still refresh open construction queue buttons cheaply.
-                if (_openMenu == MenuId.Construction) RefreshQueueCancelButtons(s);
+                RefreshQueueCancelButtons(s);
+            }
+
+            if (chartDirty)
+            {
+                _panelDirtyChart = _chartMenu;
+                _panelDirtyDay = day;
+                RefreshChartDrawer(s);
             }
 
             RefreshQueueCancelButtons(s);
@@ -436,8 +494,6 @@ namespace MinistryOfPower.UI
         {
             if (_ordersPanel == null || _ordersBody == null || s == null) return;
             _ordersPanel.SetActive(_ordersOpen);
-            if (_ordersToggleLabel != null)
-                _ordersToggleLabel.text = _ordersOpen ? "Orders ▴" : "Orders ▾";
             if (!_ordersOpen) return;
 
             _sb.Length = 0;
@@ -571,7 +627,7 @@ namespace MinistryOfPower.UI
         private void RefreshSidePanel(GameSession s)
         {
             if (_leftPanel == null) return;
-            bool leftOpen = _openMenu != MenuId.None;
+            bool leftOpen = IsVerbMenu(_openMenu);
             _leftPanel.SetActive(leftOpen);
 
             if (_buildActions != null) _buildActions.SetActive(_openMenu == MenuId.Construction);
@@ -589,22 +645,12 @@ namespace MinistryOfPower.UI
             if (_cabinetActions != null) _cabinetActions.SetActive(_openMenu == MenuId.Cabinet);
 
             SyncLeftDrawerLayout();
-            LayoutPanelBodyForCharts(_openMenu == MenuId.Mandate || _openMenu == MenuId.Budget);
-            _reportCharts?.ShowForMenu(_openMenu, s);
 
             switch (_openMenu)
             {
                 case MenuId.Construction:
                     _panelTitle.text = "CONSTRUCTION · " + _buildFilter.ToString().ToUpperInvariant();
                     _panelBody.text = BuildConstructionText(s, _buildFilter);
-                    break;
-                case MenuId.EnergyMix:
-                    _panelTitle.text = "ENERGY MIX";
-                    _panelBody.text = BuildMixText(s);
-                    break;
-                case MenuId.Resources:
-                    _panelTitle.text = "RESOURCES";
-                    _panelBody.text = BuildResourcesText(s);
                     break;
                 case MenuId.Deals:
                     _panelTitle.text = "DEALS";
@@ -615,18 +661,6 @@ namespace MinistryOfPower.UI
                 case MenuId.Policy:
                     _panelTitle.text = "SUBSIDIES / PRICING";
                     _panelBody.text = BuildPolicyText(s);
-                    break;
-                case MenuId.Mandate:
-                    _panelTitle.text = "MANDATE / VICTORY";
-                    _panelBody.text = s.Mandate != null ? FormatMandateSummary(s) : "—";
-                    break;
-                case MenuId.Budget:
-                    _panelTitle.text = "BUDGET LEDGER";
-                    _panelBody.text = s.Ledger != null ? FormatBudgetSummary(s) : "—";
-                    break;
-                case MenuId.History:
-                    _panelTitle.text = "EVENT HISTORY";
-                    _panelBody.text = s.History != null ? s.History.FormatPanel() : "—";
                     break;
                 case MenuId.Cabinet:
                     _panelTitle.text = "CABINET";
@@ -639,11 +673,53 @@ namespace MinistryOfPower.UI
             }
         }
 
-        private void LayoutPanelBodyForCharts(bool chartsVisible)
+        private void RefreshChartDrawer(GameSession s)
         {
-            if (_panelBody == null) return;
-            var rt = _panelBody.rectTransform;
-            // When mandate/budget charts occupy the lower half, keep copy in the upper band.
+            if (_chartDrawer == null) return;
+            bool open = IsChartMenu(_chartMenu);
+            _chartDrawer.SetActive(open);
+            if (!open)
+            {
+                _reportCharts?.HidePanelCharts();
+                return;
+            }
+
+            LayoutChartBodyForCharts(_chartMenu == MenuId.Mandate || _chartMenu == MenuId.Budget);
+            _reportCharts?.ShowForMenu(_chartMenu, s);
+
+            switch (_chartMenu)
+            {
+                case MenuId.EnergyMix:
+                    _chartTitle.text = "ENERGY MIX";
+                    _chartBody.text = BuildMixText(s);
+                    break;
+                case MenuId.Resources:
+                    _chartTitle.text = "RESOURCES";
+                    _chartBody.text = BuildResourcesText(s);
+                    break;
+                case MenuId.Mandate:
+                    _chartTitle.text = "MANDATE / VICTORY";
+                    _chartBody.text = s.Mandate != null ? FormatMandateSummary(s) : "—";
+                    break;
+                case MenuId.Budget:
+                    _chartTitle.text = "BUDGET LEDGER";
+                    _chartBody.text = s.Ledger != null ? FormatBudgetSummary(s) : "—";
+                    break;
+                case MenuId.History:
+                    _chartTitle.text = "EVENT HISTORY";
+                    _chartBody.text = s.History != null ? s.History.FormatPanel() : "—";
+                    break;
+                default:
+                    _chartTitle.text = "";
+                    _chartBody.text = "";
+                    break;
+            }
+        }
+
+        private void LayoutChartBodyForCharts(bool chartsVisible)
+        {
+            if (_chartBody == null) return;
+            var rt = _chartBody.rectTransform;
             if (chartsVisible)
             {
                 rt.anchorMin = new Vector2(0.04f, 0.50f);
@@ -651,7 +727,7 @@ namespace MinistryOfPower.UI
             }
             else
             {
-                rt.anchorMin = new Vector2(0.04f, 0.52f);
+                rt.anchorMin = new Vector2(0.04f, 0.08f);
                 rt.anchorMax = new Vector2(0.96f, 0.90f);
             }
         }
@@ -966,13 +1042,37 @@ namespace MinistryOfPower.UI
 
         private void ToggleMenu(MenuId id)
         {
-            // Radio/tab: one left surface at a time. Re-click closes.
+            if (!IsVerbMenu(id)) return;
+            // Radio/tab: one verb surface at a time. Re-click closes.
             bool closing = _openMenu == id;
             _openMenu = closing ? MenuId.None : id;
 
             if (_openMenu != MenuId.Construction) _buildFiltersOpen = false;
             if (_openMenu != MenuId.Deals) _dealBriefOpen = false;
+            if (_openMenu != MenuId.None)
+            {
+                _ordersOpen = false;
+                if (_ordersPanel != null) _ordersPanel.SetActive(false);
+            }
+
             _panelDirtyMenu = (MenuId)(-1); // force side-panel rebuild
+            Render();
+        }
+
+        private void ToggleChartDrawer(MenuId id)
+        {
+            if (!IsChartMenu(id)) return;
+            bool closing = _chartMenu == id;
+            _chartMenu = closing ? MenuId.None : id;
+            if (_chartMenu != MenuId.None)
+            {
+                _duckOpen = false;
+                if (_duckDrawer != null) _duckDrawer.SetActive(false);
+                _ordersOpen = false;
+                if (_ordersPanel != null) _ordersPanel.SetActive(false);
+            }
+
+            _panelDirtyChart = (MenuId)(-1);
             Render();
         }
 
@@ -981,17 +1081,50 @@ namespace MinistryOfPower.UI
             if (_leftPanel == null) return;
             var rt = _leftPanel.GetComponent<RectTransform>();
             if (rt == null) return;
-            // Drawer sits under the horizontal tab chip row (tab row occupies ~0.915–0.955).
-            rt.anchorMin = new Vector2(0f, _chromeBottom);
-            rt.anchorMax = new Vector2(_leftDrawerMaxX, 0.915f);
+            // Compact verb content panel (triggers stay full-size under top bar).
+            const float tabY0 = 0.915f;
+            const float panelMaxX = 0.30f;
+            const float panelMinY = 0.30f;
+            rt.anchorMin = new Vector2(0f, panelMinY);
+            rt.anchorMax = new Vector2(panelMaxX, tabY0);
         }
 
         private void ToggleOrders()
         {
             _ordersOpen = !_ordersOpen;
+            if (_ordersOpen)
+            {
+                _openMenu = MenuId.None;
+                _chartMenu = MenuId.None;
+                _duckOpen = false;
+                if (_duckDrawer != null) _duckDrawer.SetActive(false);
+                if (_chartDrawer != null) _chartDrawer.SetActive(false);
+                _panelDirtyMenu = (MenuId)(-1);
+                _panelDirtyChart = (MenuId)(-1);
+            }
+
             if (_ordersPanel != null) _ordersPanel.SetActive(_ordersOpen);
-            if (_ordersToggleLabel != null)
-                _ordersToggleLabel.text = _ordersOpen ? "Orders ▴" : "Orders ▾";
+            Render();
+        }
+
+        private void ToggleDuck()
+        {
+            _duckOpen = !_duckOpen;
+            if (_duckOpen)
+            {
+                _chartMenu = MenuId.None;
+                if (_chartDrawer != null) _chartDrawer.SetActive(false);
+                _panelDirtyChart = (MenuId)(-1);
+            }
+
+            if (_duckDrawer != null) _duckDrawer.SetActive(_duckOpen);
+            if (_duckToggleLabel != null)
+                _duckToggleLabel.text = _duckOpen ? "24h▴" : "24h";
+            if (_duckOpen)
+            {
+                GameSession s = _session?.Invoke();
+                if (s != null) _strip?.Render(s);
+            }
         }
 
         private void ToggleBuildFilters()
@@ -1060,16 +1193,16 @@ namespace MinistryOfPower.UI
                 new Vector2(0.28f, topY0), new Vector2(Mathf.Max(0.46f, timeLeft - 0.01f), topY1));
 
             UiFactory.Panel(canvasGo.transform, "TimeBar", new Vector2(timeLeft, topY0), new Vector2(1f, topY1), UiFactory.Hex("2B2118"));
-            // Compact − / Nx / + chips (same height band as vitals).
-            float chipHPad = 0.008f;
+            // Compact − / Nx / + chips — shorter than the bar so they read as text-height.
+            float chipHPad = 0.012f;
             float speedY0 = topY0 + chipHPad;
             float speedY1 = topY1 - chipHPad;
-            float chipW = Mathf.Clamp(_timeSpeedSlotWidth * 0.45f, 0.018f, 0.028f);
-            float labelW = 0.034f;
-            const float speedGap = 0.003f;
+            float chipW = 0.016f;
+            float labelW = 0.028f;
+            const float speedGap = 0.002f;
             float clusterW = chipW * 2f + labelW + speedGap * 2f;
             float speedX0 = 0.995f - clusterW;
-            int spdFont = Mathf.Max(9, _timeControlFontSize);
+            int spdFont = Mathf.Max(8, _timeControlFontSize - 1);
             int dateFont = Mathf.Max(10, _timeControlFontSize);
 
             _dateTimeText = UiFactory.Label(canvasGo.transform, "DateTime", paper, dateFont, FontStyle.Bold,
@@ -1104,14 +1237,19 @@ namespace MinistryOfPower.UI
                 new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), TextAnchor.MiddleCenter);
             _tipBanner.SetActive(false);
 
-            // ——— TOP-LEFT TAB CHIPS: horizontal row under vitals (exclusive) ———
-            float leftMax = _leftDrawerMaxX;
-            float bot = Mathf.Clamp(_chromeBottom, 0.05f, 0.12f);
+            // ——— VERB TABS under vitals (readable chips; compact content panel below) ———
+            float bot = Mathf.Clamp(_chromeBottom, 0.045f, 0.058f);
+            const float ordersTabW = 0.018f;
+            float ordersX0 = 1f - ordersTabW;
             const float tabY0 = 0.915f;
             const float tabY1 = 0.955f;
-            UiFactory.Panel(canvasGo.transform, "TabRow", new Vector2(0f, tabY0), new Vector2(leftMax, tabY1), bar);
+            // Readable trigger chips (restore prior footprint); panel itself is compact.
+            const float verbPanelMaxX = 0.30f;
+            const float verbPanelMinY = 0.30f;
+            float tabRowMax = Mathf.Max(verbPanelMaxX, 0.40f);
+            UiFactory.Panel(canvasGo.transform, "TabRow", new Vector2(0f, tabY0), new Vector2(tabRowMax, tabY1), bar);
             float tx = 0.008f;
-            float tabW = (leftMax - 0.016f) / 4f;
+            float tabW = (tabRowMax - 0.016f) / 4f;
             TabChip(canvasGo.transform, "Construction", MenuId.Construction, ref tx, tabW, tabY0, tabY1,
                 "Queue, catalog, projections");
             TabChip(canvasGo.transform, "Deals", MenuId.Deals, ref tx, tabW, tabY0, tabY1,
@@ -1121,16 +1259,14 @@ namespace MinistryOfPower.UI
             TabChip(canvasGo.transform, "Subsidies", MenuId.Policy, ref tx, tabW, tabY0, tabY1,
                 "Subsidies, freezes, reserves");
 
-            // Left content panel under the tab chip row
-            var side = UiFactory.Panel(canvasGo.transform, "SidePanel", new Vector2(0f, bot), new Vector2(leftMax, tabY0), panel);
+            // Compact left content panel (smaller than full rail — not the trigger buttons).
+            var side = UiFactory.Panel(canvasGo.transform, "SidePanel",
+                new Vector2(0f, verbPanelMinY), new Vector2(verbPanelMaxX, tabY0), panel);
             _leftPanel = side.gameObject;
             _panelTitle = UiFactory.Label(side.transform, "PTitle", accent, _hudTitleFontSize, FontStyle.Bold,
                 new Vector2(0.04f, 0.9f), new Vector2(0.78f, 0.98f));
             _panelBody = UiFactory.Label(side.transform, "PBody", paper, _hudBodyFontSize, FontStyle.Normal,
                 new Vector2(0.04f, 0.52f), new Vector2(0.96f, 0.9f), TextAnchor.UpperLeft);
-
-            _reportCharts = ReportChartsHost.Create(side.transform);
-            _reportCharts.ApplyChartHeight(_reportChartHeight);
 
             var filterToggle = UiFactory.Button(side.transform, "FilterToggle", "Filters ▾",
                 new Vector2(0.04f, 0.455f), new Vector2(0.36f, 0.51f),
@@ -1245,50 +1381,99 @@ namespace MinistryOfPower.UI
             _cabinetActions.SetActive(false);
             _leftPanel.SetActive(false);
 
-            // ——— RIGHT: ESC system + collapsible Orders summary ———
+            // ——— TOP-RIGHT: ESC (above right-edge Orders tab) ———
             UiFactory.Button(canvasGo.transform, "EscBtn", "ESC",
-                new Vector2(0.955f, tabY0), new Vector2(0.995f, tabY1),
+                new Vector2(ordersX0 - 0.042f, tabY0), new Vector2(ordersX0 - 0.004f, tabY1),
                 () => _onSystemMenu?.Invoke(), UiFactory.Hex("6B3030"), paper, 11,
                 "System menu — save / load / settings / resign");
 
-            var ordersToggle = UiFactory.Button(canvasGo.transform, "OrdersToggle", "Orders ▴",
-                new Vector2(_rightDrawerMinX, tabY0), new Vector2(0.95f, tabY1),
-                ToggleOrders, UiFactory.Hex("3A2E22"), accent, 11, "Build queue + timed deadlines");
-            _ordersToggleLabel = ordersToggle.GetComponentInChildren<Text>();
+            // ——— RIGHT-EDGE Orders tab (Paradox-style) + slide-in from right ———
+            var ordersTab = UiFactory.Button(canvasGo.transform, "OrdersToggle", "ORD",
+                new Vector2(ordersX0, 0.38f), new Vector2(1f, 0.72f),
+                ToggleOrders, UiFactory.Hex("3A2E22"), accent, 9, "Build queue + timed deadlines");
+            _ordersToggleLabel = ordersTab.GetComponentInChildren<Text>();
+            if (_ordersToggleLabel != null)
+            {
+                _ordersToggleLabel.text = "ORDERS";
+                _ordersToggleLabel.rectTransform.localEulerAngles = new Vector3(0f, 0f, -90f);
+                _ordersToggleLabel.fontSize = 10;
+            }
 
             var orders = UiFactory.Panel(canvasGo.transform, "OrdersPanel",
-                new Vector2(_rightDrawerMinX, bot), new Vector2(1f, tabY0), panel);
+                new Vector2(ordersX0 - 0.20f, verbPanelMinY), new Vector2(ordersX0, tabY0), panel);
             _ordersPanel = orders.gameObject;
             _ordersBody = UiFactory.Label(orders.transform, "OrdersBody", paper, _hudBodyFontSize, FontStyle.Normal,
                 new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.96f), TextAnchor.UpperLeft);
-            _ordersPanel.SetActive(_ordersOpen);
+            _ordersPanel.SetActive(false);
+            _ordersOpen = false;
 
-            // ——— BOTTOM-LEFT: Charts buttons + thin 24h peek ———
+            // ——— RIGHT: 24h duck chip above lenses, left of Orders edge tab ———
+            const float duckChip = 0.042f;
+            float duckY0 = bot + 0.012f;
+            float duckY1 = duckY0 + duckChip;
+            float duckX1 = ordersX0 - 0.004f;
+            float duckX0 = duckX1 - duckChip;
+
+            var duckBtn = UiFactory.Button(canvasGo.transform, "DuckBtn", "24h",
+                new Vector2(duckX0, duckY0), new Vector2(duckX1, duckY1),
+                ToggleDuck, UiFactory.Hex("3A2E22"), accent, 9, "24h load / supply (daily duck)");
+            _duckToggleLabel = duckBtn.GetComponentInChildren<Text>();
+
+            // Shared bottom-center drawer host (stops short of right Orders rail).
+            float drawerMaxX = Mathf.Min(_rightDrawerMinX - 0.008f, ordersX0 - 0.01f);
+            var duck = UiFactory.Panel(canvasGo.transform, "DuckDrawer",
+                new Vector2(0.40f, bot), new Vector2(drawerMaxX, 0.40f), panel);
+            _duckDrawer = duck.gameObject;
+            UiFactory.Label(duck.transform, "DuckTitle", accent, 12, FontStyle.Bold,
+                new Vector2(0.03f, 0.90f), new Vector2(0.90f, 0.98f)).text = "24h DISPATCH";
+            UiFactory.Button(duck.transform, "DuckClose", "X",
+                new Vector2(0.90f, 0.90f), new Vector2(0.98f, 0.98f),
+                () => { if (_duckOpen) ToggleDuck(); }, UiFactory.Hex("6B3030"), paper, 11);
+            _strip = SupplyDemandStrip.Create(duck.transform,
+                new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.88f));
+            _duckDrawer.SetActive(false);
+            _duckOpen = false;
+
+            var chart = UiFactory.Panel(canvasGo.transform, "ChartDrawer",
+                new Vector2(0.40f, bot), new Vector2(drawerMaxX, 0.40f), panel);
+            _chartDrawer = chart.gameObject;
+            _chartTitle = UiFactory.Label(chart.transform, "ChartTitle", accent, 12, FontStyle.Bold,
+                new Vector2(0.03f, 0.90f), new Vector2(0.90f, 0.98f));
+            UiFactory.Button(chart.transform, "ChartClose", "X",
+                new Vector2(0.90f, 0.90f), new Vector2(0.98f, 0.98f),
+                () => { if (_chartMenu != MenuId.None) ToggleChartDrawer(_chartMenu); },
+                UiFactory.Hex("6B3030"), paper, 11);
+            _chartBody = UiFactory.Label(chart.transform, "ChartBody", paper, _hudBodyFontSize, FontStyle.Normal,
+                new Vector2(0.04f, 0.08f), new Vector2(0.96f, 0.90f), TextAnchor.UpperLeft);
+            _reportCharts = ReportChartsHost.Create(chart.transform);
+            _reportCharts.ApplyChartHeight(_reportChartHeight);
+            _chartDrawer.SetActive(false);
+            _chartMenu = MenuId.None;
+
+            // ——— BOTTOM: square chart chips (left) + lens stubs (right of duck, left of Orders) ———
             UiFactory.Panel(canvasGo.transform, "Bottom", new Vector2(0f, 0f), new Vector2(1f, bot), bar);
-            float chartY0 = 0.005f;
-            float chartY1 = bot - 0.008f;
-            float cx = 0.01f;
-            float cw = 0.07f;
-            ChartBtn(canvasGo.transform, "Mix", MenuId.EnergyMix, ref cx, cw, chartY0, chartY1, "Energy mix");
-            ChartBtn(canvasGo.transform, "Fuel", MenuId.Resources, ref cx, cw, chartY0, chartY1, "Fuel stocks");
-            ChartBtn(canvasGo.transform, "Mandate", MenuId.Mandate, ref cx, cw, chartY0, chartY1, "Mandate tracker");
-            ChartBtn(canvasGo.transform, "Budget", MenuId.Budget, ref cx, cw, chartY0, chartY1, "Budget ledger");
-            ChartBtn(canvasGo.transform, "History", MenuId.History, ref cx, cw, chartY0, chartY1, "Event history");
+            float sq = Mathf.Min(bot - 0.008f, 0.040f);
+            float chartY0 = (bot - sq) * 0.5f;
+            float chartY1 = chartY0 + sq;
+            float cx = 0.008f;
+            ChartBtn(canvasGo.transform, "Mix", MenuId.EnergyMix, ref cx, sq, chartY0, chartY1, "Energy mix");
+            ChartBtn(canvasGo.transform, "Fuel", MenuId.Resources, ref cx, sq, chartY0, chartY1, "Fuel stocks");
+            ChartBtn(canvasGo.transform, "Mandate", MenuId.Mandate, ref cx, sq, chartY0, chartY1, "Mandate tracker");
+            ChartBtn(canvasGo.transform, "Budget", MenuId.Budget, ref cx, sq, chartY0, chartY1, "Budget ledger");
+            ChartBtn(canvasGo.transform, "History", MenuId.History, ref cx, sq, chartY0, chartY1, "Event history");
 
-            _strip = SupplyDemandStrip.Create(canvasGo.transform,
-                new Vector2(cx + 0.01f, 0.004f), new Vector2(0.72f, bot - 0.004f));
-
-            // ——— BOTTOM-RIGHT: map lens placeholders (no logic) ———
-            var lensWind = UiFactory.Button(canvasGo.transform, "LensWind", "Wind",
-                new Vector2(0.74f, 0.01f), new Vector2(0.86f, bot - 0.01f),
-                () => ShowTip("Map lenses deferred — wind overlay not implemented yet."),
-                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 10, "Placeholder — map lenses later");
-            lensWind.interactable = false;
-            var lensLog = UiFactory.Button(canvasGo.transform, "LensLogistics", "Logistics",
-                new Vector2(0.87f, 0.01f), new Vector2(0.99f, bot - 0.01f),
+            float lx = duckX0 - 0.004f - sq;
+            var lensLog = UiFactory.Button(canvasGo.transform, "LensLogistics", "Log",
+                new Vector2(lx, chartY0), new Vector2(lx + sq - 0.004f, chartY1),
                 () => ShowTip("Map lenses deferred — logistics paths not implemented yet."),
-                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 10, "Placeholder — map lenses later");
+                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 8, "Placeholder — map lenses later");
             lensLog.interactable = false;
+            lx -= sq;
+            var lensWind = UiFactory.Button(canvasGo.transform, "LensWind", "Wind",
+                new Vector2(lx, chartY0), new Vector2(lx + sq - 0.004f, chartY1),
+                () => ShowTip("Map lenses deferred — wind overlay not implemented yet."),
+                UiFactory.Hex("3A2E22"), UiFactory.Hex("8A8070"), 8, "Placeholder — map lenses later");
+            lensWind.interactable = false;
 
             // Region / plant / confirm / year / event / end / help (unchanged spirit)
             var reg = UiFactory.Panel(canvasGo.transform, "RegionPanel", new Vector2(0.42f, 0.55f), new Vector2(0.70f, 0.84f), UiFactory.Hex("1A1510EE"));
@@ -1403,7 +1588,8 @@ namespace MinistryOfPower.UI
                 "· Under vitals: Construction / Deals / Cabinet / Subsidies chips (one at a time).\n" +
                 "· Top-right: 15/Jan/2026 · 14:00 and − / speed / + (1×…5×).\n" +
                 "· Right: ESC system menu · Orders summary (builds + deadlines).\n" +
-                "· Bottom-left: Charts buttons open report drawers · thin 24h peek.\n" +
+                "· Bottom-left: square chart chips open report drawers.\n" +
+                "· Right 24h chip: opens daily duck / load-vs-supply drawer.\n" +
                 "· Bottom-right: map lenses placeholder (later).\n" +
                 "· ESC / ESC button: pause — Save / Load / Settings / Resign.\n" +
                 "· F5: Quick Save · map: LMB select · RMB pan · scroll zoom.";
@@ -1435,12 +1621,13 @@ namespace MinistryOfPower.UI
             x += w;
         }
 
-        private void ChartBtn(Transform parent, string label, MenuId id, ref float x, float w, float y0, float y1, string tip)
+        private void ChartBtn(Transform parent, string label, MenuId id, ref float x, float side, float y0, float y1, string tip)
         {
+            // Square icon-chip → exclusive chart drawer (not left-rail takeover).
             UiFactory.Button(parent, "Chart_" + label, label,
-                new Vector2(x, y0), new Vector2(x + w - 0.005f, y1),
-                () => ToggleMenu(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 10, tip);
-            x += w;
+                new Vector2(x, y0), new Vector2(x + side - 0.004f, y1),
+                () => ToggleChartDrawer(id), UiFactory.Hex("3A2E22"), UiFactory.Hex("E7DCC8"), 8, tip);
+            x += side;
         }
     }
 }
