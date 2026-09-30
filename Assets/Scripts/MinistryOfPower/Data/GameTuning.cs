@@ -70,8 +70,16 @@ namespace MinistryOfPower.Data
 
         public Vector2 panBounds = new Vector2(14f, 10f);
 
-        [Min(0.001f)]
-        public float panSpeed = 0.018f;
+        [Tooltip("1 = pan distance matches pointer travel on screen (orthoSize / screen height).")]
+        [Range(0.25f, 2f)]
+        public float panSensitivity = 1f;
+
+        [Tooltip("Flip vertical grab direction if RMB drag feels backwards.")]
+        public bool invertY;
+
+        [Tooltip("0 = precise stop on release. Higher = short inertia that decays quickly.")]
+        [Range(0f, 40f)]
+        public float panDamping;
 
         [Min(1.01f)]
         public float zoomStep = 1.1f;

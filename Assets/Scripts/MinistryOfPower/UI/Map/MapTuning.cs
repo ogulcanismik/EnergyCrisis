@@ -23,7 +23,16 @@ namespace MinistryOfPower.UI.Map
         [SerializeField] private float minOrthoSize = UsaMapLayout.MinOrthoSize;
         [SerializeField] private float maxOrthoSize = UsaMapLayout.MaxOrthoSize;
         [SerializeField] private Vector2 panBounds = new Vector2(14f, 10f);
-        [SerializeField] private float panSpeed = 0.018f;
+
+        [Tooltip("1 = pan distance matches pointer travel on screen (ortho-aware).")]
+        [SerializeField] [Range(0.25f, 2f)] private float panSensitivity = 1f;
+
+        [Tooltip("Flip vertical grab direction if the map feels upside-down under the cursor.")]
+        [SerializeField] private bool invertY;
+
+        [Tooltip("0 = precise stop on release. Higher = short inertia that decays quickly.")]
+        [SerializeField] [Range(0f, 40f)] private float panDamping;
+
         [SerializeField] private float zoomStep = 1.1f;
 
         public Vector2 PngWorldSize => gameTuning != null ? gameTuning.pngWorldSize : pngWorldSize;
@@ -33,7 +42,9 @@ namespace MinistryOfPower.UI.Map
         public float MinOrthoSize => gameTuning != null ? gameTuning.minOrthoSize : minOrthoSize;
         public float MaxOrthoSize => gameTuning != null ? gameTuning.maxOrthoSize : maxOrthoSize;
         public Vector2 PanBounds => gameTuning != null ? gameTuning.panBounds : panBounds;
-        public float PanSpeed => gameTuning != null ? gameTuning.panSpeed : panSpeed;
+        public float PanSensitivity => gameTuning != null ? gameTuning.panSensitivity : panSensitivity;
+        public bool InvertY => gameTuning != null ? gameTuning.invertY : invertY;
+        public float PanDamping => gameTuning != null ? gameTuning.panDamping : panDamping;
         public float ZoomStep => gameTuning != null ? gameTuning.zoomStep : zoomStep;
 
         public void BindGameTuning(GameTuning tuning)
@@ -46,7 +57,9 @@ namespace MinistryOfPower.UI.Map
             minOrthoSize = tuning.minOrthoSize;
             maxOrthoSize = tuning.maxOrthoSize;
             panBounds = tuning.panBounds;
-            panSpeed = tuning.panSpeed;
+            panSensitivity = tuning.panSensitivity;
+            invertY = tuning.invertY;
+            panDamping = tuning.panDamping;
             zoomStep = tuning.zoomStep;
         }
 

@@ -382,7 +382,9 @@ MonoBehaviour:
   minOrthoSize: 4.5
   maxOrthoSize: 18
   panBounds: {x: 14, y: 10}
-  panSpeed: 0.018
+  panSensitivity: 1
+  invertY: 0
+  panDamping: 0
   zoomStep: 1.1
 --- !u!114 &1262823390
 MonoBehaviour:
@@ -397,7 +399,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.UI.Map.MapCameraController
   targetCamera: {fileID: 0}
-  panSpeed: 0.018
+  panSensitivity: 1
+  invertY: 0
+  panDamping: 0
   zoomStep: 1.1
   minOrtho: 4.5
   maxOrtho: 18

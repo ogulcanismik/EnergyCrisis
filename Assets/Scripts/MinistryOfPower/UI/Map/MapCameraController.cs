@@ -13,7 +13,16 @@ namespace MinistryOfPower.UI.Map
     public sealed class MapCameraController : MonoBehaviour
     {
         [SerializeField] private Camera targetCamera;
-        [SerializeField] private float panSpeed = 0.018f;
+
+        [Tooltip("1 = pan distance matches pointer travel on screen (ortho-aware).")]
+        [SerializeField] [Range(0.25f, 2f)] private float panSensitivity = 1f;
+
+        [Tooltip("Flip vertical grab direction if the map feels upside-down under the cursor.")]
+        [SerializeField] private bool invertY;
+
+        [Tooltip("0 = precise stop on release. Higher = short inertia that decays quickly.")]
+        [SerializeField] [Range(0f, 40f)] private float panDamping;
+
         [SerializeField] private float zoomStep = 1.1f;
         [SerializeField] private float minOrtho = UsaMapLayout.MinOrthoSize;
         [SerializeField] private float maxOrtho = UsaMapLayout.MaxOrthoSize;
@@ -22,6 +31,7 @@ namespace MinistryOfPower.UI.Map
 
         private bool _panning;
         private Vector2 _lastPointer;
+        private Vector3 _velocity;
         private bool _framed;
 
         public Camera TargetCamera => targetCamera;
@@ -40,7 +50,9 @@ namespace MinistryOfPower.UI.Map
             minOrtho = mapTuning.MinOrthoSize;
             maxOrtho = mapTuning.MaxOrthoSize;
             panBounds = mapTuning.PanBounds;
-            panSpeed = mapTuning.PanSpeed;
+            panSensitivity = mapTuning.PanSensitivity;
+            invertY = mapTuning.InvertY;
+            panDamping = mapTuning.PanDamping;
             zoomStep = mapTuning.ZoomStep;
         }
 
@@ -59,6 +71,7 @@ namespace MinistryOfPower.UI.Map
             // Near-top-down so Shell B chrome frames a flat political map.
             targetCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             _framed = true;
+            _velocity = Vector3.zero;
         }
 
         private void Update()
@@ -89,24 +102,62 @@ namespace MinistryOfPower.UI.Map
             {
                 _panning = true;
                 _lastPointer = pointer;
+                _velocity = Vector3.zero;
             }
-            else if (!held)
+            else if (!held && _panning)
             {
                 _panning = false;
+            }
+
+            if (_panning)
+            {
+                Vector2 delta = pointer - _lastPointer;
+                _lastPointer = pointer;
+                if (delta.sqrMagnitude >= 0.01f)
+                {
+                    Vector3 step = ScreenDeltaToWorld(delta);
+                    ApplyPanDelta(step);
+                    // Capture instantaneous drag velocity for optional release inertia.
+                    float dt = Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
+                    _velocity = step / dt;
+                }
+                else
+                {
+                    _velocity = Vector3.zero;
+                }
+
                 return;
             }
 
-            if (!_panning) return;
+            if (panDamping <= 0.01f || _velocity.sqrMagnitude < 0.0001f)
+            {
+                _velocity = Vector3.zero;
+                return;
+            }
 
-            Vector2 delta = pointer - _lastPointer;
-            _lastPointer = pointer;
-            if (delta.sqrMagnitude < 0.01f) return;
+            // Light coast that stops quickly — prefer precise drag over slippery feel.
+            ApplyPanDelta(_velocity * Time.unscaledDeltaTime);
+            _velocity = Vector3.Lerp(_velocity, Vector3.zero, 1f - Mathf.Exp(-panDamping * Time.unscaledDeltaTime));
+            if (_velocity.sqrMagnitude < 0.0001f) _velocity = Vector3.zero;
+        }
 
-            // Screen right → +X, screen up → +Z (camera looks down -Y).
-            float scale = panSpeed * targetCamera.orthographicSize;
-            Vector3 pos = targetCamera.transform.position;
-            pos.x -= delta.x * scale;
-            pos.z -= delta.y * scale;
+        private Vector3 ScreenDeltaToWorld(Vector2 screenDelta)
+        {
+            // Ortho height in world units is 2 * orthographicSize across Screen.height pixels.
+            float unitsPerPixel = (2f * targetCamera.orthographicSize) /
+                                  Mathf.Max(1f, Screen.height);
+            float scale = unitsPerPixel * panSensitivity;
+            float ySign = invertY ? 1f : -1f;
+
+            // Grab the map: pointer right → content follows right → camera moves left.
+            Vector3 right = targetCamera.transform.right;
+            Vector3 up = targetCamera.transform.up;
+            return (right * (-screenDelta.x) + up * (ySign * screenDelta.y)) * scale;
+        }
+
+        private void ApplyPanDelta(Vector3 worldDelta)
+        {
+            Vector3 pos = targetCamera.transform.position + worldDelta;
             pos.x = Mathf.Clamp(pos.x, -panBounds.x, panBounds.x);
             pos.z = Mathf.Clamp(pos.z, -panBounds.y, panBounds.y);
             targetCamera.transform.position = pos;
