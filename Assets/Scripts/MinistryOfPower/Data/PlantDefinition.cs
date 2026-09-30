@@ -14,7 +14,10 @@ namespace MinistryOfPower.Data
         public float VariableCostPerMwh = 40f;
         [Range(0f, 1f)] public float OilExposure;
 
-        public PlantSpawnConfig ToSpawn(string overrideName = null, float? capacityOverride = null)
+        public PlantSpawnConfig ToSpawn(
+            string overrideName = null,
+            float? capacityOverride = null,
+            RegionId? region = null)
         {
             return new PlantSpawnConfig
             {
@@ -24,7 +27,9 @@ namespace MinistryOfPower.Data
                 CapacityMw = capacityOverride ?? CapacityMw,
                 Availability = Availability,
                 VariableCostPerMwh = VariableCostPerMwh,
-                OilExposure = OilExposure
+                OilExposure = OilExposure,
+                Region = region ?? RegionId.North,
+                RegionExplicit = region.HasValue
             };
         }
     }

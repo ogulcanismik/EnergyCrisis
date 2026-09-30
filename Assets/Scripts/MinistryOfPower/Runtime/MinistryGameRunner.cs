@@ -270,7 +270,8 @@ namespace MinistryOfPower.Runtime
                 if (fromAsset.Id == scenarioId || scenarioId == "usa_like")
                 {
                     config = fromAsset;
-                    if (assetBuilds.Count > 0) builds = assetBuilds;
+                    // D1: never replace 10-build factory catalog with a partial SO list.
+                    builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
                 }
             }
 
@@ -278,7 +279,7 @@ namespace MinistryOfPower.Runtime
             {
                 config = alternateScenario.ToConfig();
                 var assetBuilds = alternateScenario.ToBuildConfigs();
-                if (assetBuilds.Count > 0) builds = assetBuilds;
+                builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);
             }
 
             if (builds.Count < 5)

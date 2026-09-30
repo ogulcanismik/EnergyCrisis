@@ -110,13 +110,24 @@ namespace MinistryOfPower.Runtime
             return id == "usa_like" || string.IsNullOrEmpty(id);
         }
 
+        /// <summary>Merge factory catalog into <paramref name="builds"/> by Id (existing wins; no dupes).</summary>
         public static void AppendDefaultBuilds(List<BuildDefinitionConfig> builds)
         {
-            List<BuildDefinitionConfig> full = CreateFullCatalog();
-            for (int i = 0; i < full.Count; i++)
-            {
-                builds.Add(full[i]);
-            }
+            if (builds == null) return;
+            List<BuildDefinitionConfig> merged = CatalogMerge.Merge(builds, CreateFullCatalog());
+            builds.Clear();
+            builds.AddRange(merged);
+        }
+
+        /// <summary>
+        /// Union base/factory catalog with SO preferred builds by Id. Preferred wins; factory fills gaps.
+        /// StartNew: <c>builds = PrototypeContentFactory.MergeCatalog(builds, assetBuilds);</c>
+        /// </summary>
+        public static List<BuildDefinitionConfig> MergeCatalog(
+            List<BuildDefinitionConfig> factoryOrBase,
+            List<BuildDefinitionConfig> preferredFromSo)
+        {
+            return CatalogMerge.Merge(preferredFromSo, factoryOrBase);
         }
 
         public static List<BuildDefinitionConfig> CreateFullCatalog()

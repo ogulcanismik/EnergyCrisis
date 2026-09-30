@@ -24,22 +24,46 @@ namespace MinistryOfPower.EditorTools
             PlantDefinition wind = CreatePlant("Assets/Data/Plants/Plant_Wind.asset", "wind", "Wind Farm", FuelKind.Wind, 100f, 0.9f, 6f, 0f);
             PlantDefinition nuclear = CreatePlant("Assets/Data/Plants/Plant_Nuclear.asset", "nuclear", "Nuclear Unit", FuelKind.Nuclear, 200f, 0.92f, 14f, 0f);
             PlantDefinition hydro = CreatePlant("Assets/Data/Plants/Plant_Hydro.asset", "hydro", "Hydro", FuelKind.Hydro, 80f, 0.8f, 8f, 0f);
+            PlantDefinition storagePlant = CreatePlant("Assets/Data/Plants/Plant_Storage.asset", "storage", "Grid Storage", FuelKind.Storage, 60f, 0.98f, 2f, 0f);
+            CreatePlant("Assets/Data/Plants/Plant_Biomass.asset", "biomass", "Biomass CHP", FuelKind.Biomass, 100f, 0.9f, 28f, 0f);
 
+            // Full construction catalog (matches PrototypeContentFactory.CreateFullCatalog).
+            BuildDefinition buildCoal = CreateBuild("Assets/Data/Builds/Build_Coal.asset", "build_coal", "Coal Plant",
+                FuelKind.Coal, 280f, 0.88f, 32f, 0.05f, BuildPaymentMode.PerQuarter, 22f, 9f, 10, 1f, 4f, 0.45f,
+                "Baseload fossil. Cheap power, transition drag.");
+            BuildDefinition buildGas = CreateBuild("Assets/Data/Builds/Build_Gas.asset", "build_gas", "Gas Combined Cycle",
+                FuelKind.Gas, 240f, 0.91f, 42f, 0.65f, BuildPaymentMode.PerQuarter, 20f, 8f, 8, 2f, 3.5f, 0.35f,
+                "Flexible mid-merit. Oil-linked fuel exposure.");
+            BuildDefinition buildOil = CreateBuild("Assets/Data/Builds/Build_Oil.asset", "build_oil", "Oil Peaker",
+                FuelKind.Oil, 100f, 0.85f, 68f, 1f, BuildPaymentMode.Upfront, 16f, 0f, 4, 3f, 2f, 0.55f,
+                "Fast peak insurance. Expensive fuel.");
             BuildDefinition buildSolar = CreateBuild("Assets/Data/Builds/Build_Solar.asset", "build_solar", "Utility Solar Park",
                 FuelKind.Solar, 180f, 0.95f, 4f, 0f, BuildPaymentMode.PerQuarter, 12f, 7f, 6, 3f, 1f, 0f,
                 "Fast clean capacity. Weather-sensitive.");
-            BuildDefinition buildNuke = CreateBuild("Assets/Data/Builds/Build_Nuclear.asset", "build_nuclear", "Nuclear Block",
-                FuelKind.Nuclear, 400f, 0.92f, 15f, 0f, BuildPaymentMode.PerQuarter, 40f, 14f, 24, 6f, 5f, 0.08f,
-                "Long bet (~6y). Uranium upkeep.");
+            BuildDefinition buildWind = CreateBuild("Assets/Data/Builds/Build_Wind.asset", "build_wind", "Wind Farm",
+                FuelKind.Wind, 160f, 0.9f, 5f, 0f, BuildPaymentMode.PerQuarter, 14f, 7f, 7, 2.5f, 1.2f, 0f,
+                "Clean capacity with wind variance.");
+            BuildDefinition buildHydro = CreateBuild("Assets/Data/Builds/Build_Hydro.asset", "build_hydro", "Hydro Upgrade",
+                FuelKind.Hydro, 120f, 0.82f, 7f, 0f, BuildPaymentMode.PerQuarter, 18f, 6f, 10, 1.5f, 1.5f, 0f,
+                "Firm renewables; drought risk.");
             BuildDefinition buildStorage = CreateBuild("Assets/Data/Builds/Build_Storage.asset", "build_storage", "Grid Storage",
                 FuelKind.Storage, 120f, 0.98f, 2f, 0f, BuildPaymentMode.Upfront, 28f, 0f, 8, 1.5f, 0.8f, 0f,
                 "Peak insurance; no fuel.");
+            BuildDefinition buildNuke = CreateBuild("Assets/Data/Builds/Build_Nuclear.asset", "build_nuclear", "Nuclear Block",
+                FuelKind.Nuclear, 400f, 0.92f, 15f, 0f, BuildPaymentMode.PerQuarter, 40f, 14f, 24, 6f, 5f, 0.08f,
+                "Long bet (~6y). Uranium upkeep.");
             BuildDefinition buildOffshore = CreateBuild("Assets/Data/Builds/Build_OffshoreWind.asset", "build_offshore_wind", "Offshore Wind",
                 FuelKind.Wind, 220f, 0.93f, 6f, 0f, BuildPaymentMode.PerQuarter, 26f, 10f, 12, 1.5f, 1.8f, 0f,
                 "High CF coastal wind. Costly, clean, storm-exposed.");
             BuildDefinition buildBiomass = CreateBuild("Assets/Data/Builds/Build_Biomass.asset", "build_biomass", "Biomass CHP",
                 FuelKind.Biomass, 140f, 0.9f, 28f, 0f, BuildPaymentMode.PerQuarter, 16f, 7f, 8, 1f, 2.4f, 0.25f,
                 "Dispatchable clean-ish heat+power. Feedstock upkeep, no oil link.");
+
+            var fullBuildCatalog = new System.Collections.Generic.List<BuildDefinition>
+            {
+                buildCoal, buildGas, buildOil, buildSolar, buildWind,
+                buildHydro, buildStorage, buildNuke, buildOffshore, buildBiomass
+            };
 
             EventDefinition oilShock = CreateEvent("Assets/Data/Events/Event_OilPriceShock.asset",
                 "oil_shock", "Oil Price Shock",
@@ -83,24 +107,25 @@ namespace MinistryOfPower.EditorTools
             usa.SolarResource = 1f;
             usa.WindResource = 1.05f;
             usa.FossilLobbyStrength = 0.85f;
+            usa.LobbyRetireMultiplier = 1.55f;
             usa.ImportCapacityMw = 60f;
+            usa.CampaignYears = 20;
+            usa.DifferentiationBlurb =
+                "Treasury +lobby · Solar CF ~1.0 · Imports thin (60 MW) · Retire fossils hurts hard (×1.55 lobby) · Oil-weighted shocks";
             usa.StartingAdequacy = 74f;
             usa.StartingAffordability = 70f;
             usa.StartingTransition = 16f;
             usa.StartingConfidence = 72f;
             usa.StartingPlants = new System.Collections.Generic.List<ScenarioPlantEntry>
             {
-                Entry(coal, "Midwest Coal Cluster", 420f),
-                Entry(gas, "Gulf Gas Fleet", 380f),
-                Entry(oil, "Coastal Oil Peak", 120f),
-                Entry(solar, "Southwest Solar", 90f),
-                Entry(nuclear, "Legacy Nuke", 180f),
-                Entry(wind, "Plains Wind", 110f)
+                Entry(coal, "Midwest Coal Cluster", 420f, RegionId.North),
+                Entry(gas, "Gulf Gas Fleet", 380f, RegionId.Coast),
+                Entry(oil, "Coastal Oil Peak", 120f, RegionId.Coast),
+                Entry(solar, "Southwest Solar", 90f, RegionId.Desert),
+                Entry(nuclear, "Legacy Nuke", 180f, RegionId.North),
+                Entry(wind, "Plains Wind", 110f, RegionId.North)
             };
-            usa.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>
-            {
-                buildSolar, buildNuke, buildStorage, buildOffshore, buildBiomass
-            };
+            usa.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>(fullBuildCatalog);
             usa.EventDeck = eventDeck;
             // Federal: cold-heavy winters, milder storms than Sun-Rich coasts.
             usa.EventWeightOverrides = new System.Collections.Generic.List<ScenarioEventWeightOverride>
@@ -124,23 +149,25 @@ namespace MinistryOfPower.EditorTools
             sun.SolarResource = 1.45f;
             sun.WindResource = 0.9f;
             sun.FossilLobbyStrength = 0.35f;
+            sun.LobbyRetireMultiplier = 0.55f;
             sun.ImportCapacityMw = 160f;
+            sun.CampaignYears = 20;
+            sun.DifferentiationBlurb =
+                "Thin treasury · Solar CF ~1.45 · Imports fat (160 MW) · Soft retire lobby (×0.55) · Drought/heat/import shocks";
             sun.StartingAdequacy = 62f;
             sun.StartingAffordability = 58f;
             sun.StartingTransition = 22f;
             sun.StartingConfidence = 68f;
             sun.StartingPlants = new System.Collections.Generic.List<ScenarioPlantEntry>
             {
-                Entry(oil, "Imported Oil Units", 160f),
-                Entry(gas, "City Gas", 200f),
-                Entry(coal, "Aging Coal", 180f),
-                Entry(solar, "Desert Solar Parks", 160f),
-                Entry(hydro, "River Hydro", 140f)
+                Entry(oil, "Imported Oil Units", 160f, RegionId.Coast),
+                Entry(gas, "City Gas", 200f, RegionId.Coast),
+                Entry(coal, "Aging Coal", 180f, RegionId.North),
+                Entry(solar, "Desert Solar Parks", 160f, RegionId.Desert),
+                Entry(hydro, "River Hydro", 140f, RegionId.North),
+                Entry(storagePlant, "Coastal Storage", 60f, RegionId.Coast)
             };
-            sun.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>
-            {
-                buildSolar, buildNuke, buildStorage, buildOffshore, buildBiomass
-            };
+            sun.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>(fullBuildCatalog);
             sun.EventDeck = eventDeck;
             // Sun-Rich: heat/drought/import/storm; cold still present but not Federal-level.
             sun.EventWeightOverrides = new System.Collections.Generic.List<ScenarioEventWeightOverride>
@@ -237,13 +264,15 @@ namespace MinistryOfPower.EditorTools
             return LoadOrCreate<ScenarioDefinition>(path);
         }
 
-        private static ScenarioPlantEntry Entry(PlantDefinition def, string name, float mw)
+        private static ScenarioPlantEntry Entry(PlantDefinition def, string name, float mw, RegionId? region = null)
         {
             return new ScenarioPlantEntry
             {
                 Definition = def,
                 OverrideName = name,
-                CapacityMwOverride = mw
+                CapacityMwOverride = mw,
+                Region = region ?? RegionId.North,
+                RegionExplicit = region.HasValue
             };
         }
 

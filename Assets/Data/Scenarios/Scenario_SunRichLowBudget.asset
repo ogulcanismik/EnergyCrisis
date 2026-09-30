@@ -16,14 +16,18 @@ MonoBehaviour:
   DisplayName: Sun-Rich Low Budget
   Description: Tight cash, excellent sun, fragile adequacy. Leapfrog if you can finance
     it.
+  DifferentiationBlurb: "Thin treasury \xB7 Solar CF ~1.45 \xB7 Imports fat (160
+    MW) \xB7 Soft retire lobby (\xD70.55) \xB7 Drought/heat/import shocks"
   StartYear: 2026
   Seed: 77
+  CampaignYears: 20
   StartingBudget: 70
   QuarterlyIncome: 9
   BaseDemandMw: 780
   SolarResource: 1.45
   WindResource: 0.9
   FossilLobbyStrength: 0.35
+  LobbyRetireMultiplier: 0.55
   ImportCapacityMw: 160
   StartingAdequacy: 62
   StartingAffordability: 58
@@ -33,22 +37,42 @@ MonoBehaviour:
   - Definition: {fileID: 11400000, guid: 081384fe57d75a646980f8331f86594b, type: 2}
     OverrideName: Imported Oil Units
     CapacityMwOverride: 160
+    Region: 1
+    RegionExplicit: 1
   - Definition: {fileID: 11400000, guid: 3fc32d854fdbc6042a1cade1be5a6603, type: 2}
     OverrideName: City Gas
     CapacityMwOverride: 200
+    Region: 1
+    RegionExplicit: 1
   - Definition: {fileID: 11400000, guid: e65862b13d0c87c4e886b0aebc566d17, type: 2}
     OverrideName: Aging Coal
     CapacityMwOverride: 180
+    Region: 0
+    RegionExplicit: 1
   - Definition: {fileID: 11400000, guid: 2df498576507d2747955a5b6c7166c30, type: 2}
     OverrideName: Desert Solar Parks
     CapacityMwOverride: 160
+    Region: 2
+    RegionExplicit: 1
   - Definition: {fileID: 11400000, guid: 0abdd66c8b9393c4bb770cb5e80d3e10, type: 2}
     OverrideName: River Hydro
     CapacityMwOverride: 140
+    Region: 0
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: e8f36b7c9d0a14c5f6b7c8d9e0f1a2b3, type: 2}
+    OverrideName: Coastal Storage
+    CapacityMwOverride: 60
+    Region: 1
+    RegionExplicit: 1
   AvailableBuilds:
+  - {fileID: 11400000, guid: f3a81c2d4e5b6970a1c2d3e4f5a6b7c8, type: 2}
+  - {fileID: 11400000, guid: a4b92d3e5f6c7081b2d3e4f5a6b7c8d9, type: 2}
+  - {fileID: 11400000, guid: b5c03e4f6a7d8192c3e4f5a6b7c8d9e0, type: 2}
   - {fileID: 11400000, guid: c0e937e7e0d89144e9c3e4e8f033b39c, type: 2}
-  - {fileID: 11400000, guid: 5ab8fcb81e5f64b488f97436e3cd4bb2, type: 2}
+  - {fileID: 11400000, guid: c6d14f5a7b8e92a3d4f5a6b7c8d9e0f1, type: 2}
+  - {fileID: 11400000, guid: d7e25a6b8c9f03b4e5a6b7c8d9e0f1a2, type: 2}
   - {fileID: 11400000, guid: 0f51dfe6c8b7beb44baa24e299bd96f8, type: 2}
+  - {fileID: 11400000, guid: 5ab8fcb81e5f64b488f97436e3cd4bb2, type: 2}
   - {fileID: 11400000, guid: d1e5a83b6c4f0273c0a77b8e1f34d2a5, type: 2}
   - {fileID: 11400000, guid: e2f6b94c7d501384d1b88c9f2a45e3b6, type: 2}
   EventDeck:
