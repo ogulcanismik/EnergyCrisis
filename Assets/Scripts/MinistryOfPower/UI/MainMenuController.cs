@@ -26,6 +26,28 @@ namespace MinistryOfPower.UI
             ShowRoot();
         }
 
+        /// <summary>Editor Play smoke: root → scenario → difficulty labels.</summary>
+        public bool SmokeNavigateToDifficulty(string scenarioId, out string title, out string body)
+        {
+            EnsureUiBuilt();
+            _scenarioId = string.IsNullOrEmpty(scenarioId) ? "usa_like" : scenarioId;
+            ShowDifficulty();
+            title = _title != null ? _title.text : "";
+            body = _body != null ? _body.text : "";
+            return title.IndexOf("DIFFICULTY", StringComparison.OrdinalIgnoreCase) >= 0
+                   && body.IndexOf("treasury", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public string SmokeTitle => _title != null ? _title.text : "";
+        public string SmokeBody => _body != null ? _body.text : "";
+
+        private void EnsureUiBuilt()
+        {
+            if (_title != null) return;
+            BuildUi();
+            ShowRoot();
+        }
+
         private void BuildUi()
         {
             UiFactory.EnsureEventSystem(transform);

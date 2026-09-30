@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.BuildDefinition
   Id: build_nuclear
   DisplayName: Nuclear Block
-  Description: 
+  Description: Long bet (~6y). Uranium upkeep.
   ResultFuel: 6
   ResultCapacityMw: 400
   ResultAvailability: 0.92
@@ -24,6 +24,6 @@ MonoBehaviour:
   UpfrontCost: 40
   QuarterlyCost: 14
   DurationQuarters: 24
-  QuarterlyUpkeep: 1
-  DailyFuelUse: 0
+  QuarterlyUpkeep: 5
+  DailyFuelUse: 0.08
   FossilLobbyConfidencePenalty: 6

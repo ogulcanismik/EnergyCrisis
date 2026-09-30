@@ -26,11 +26,20 @@ namespace MinistryOfPower.EditorTools
             PlantDefinition hydro = CreatePlant("Assets/Data/Plants/Plant_Hydro.asset", "hydro", "Hydro", FuelKind.Hydro, 80f, 0.8f, 8f, 0f);
 
             BuildDefinition buildSolar = CreateBuild("Assets/Data/Builds/Build_Solar.asset", "build_solar", "Utility Solar Park",
-                FuelKind.Solar, 180f, 0.95f, 4f, 0f, BuildPaymentMode.PerQuarter, 12f, 7f, 6, 3f);
+                FuelKind.Solar, 180f, 0.95f, 4f, 0f, BuildPaymentMode.PerQuarter, 12f, 7f, 6, 3f, 1f, 0f,
+                "Fast clean capacity. Weather-sensitive.");
             BuildDefinition buildNuke = CreateBuild("Assets/Data/Builds/Build_Nuclear.asset", "build_nuclear", "Nuclear Block",
-                FuelKind.Nuclear, 400f, 0.92f, 15f, 0f, BuildPaymentMode.PerQuarter, 40f, 14f, 24, 6f);
+                FuelKind.Nuclear, 400f, 0.92f, 15f, 0f, BuildPaymentMode.PerQuarter, 40f, 14f, 24, 6f, 5f, 0.08f,
+                "Long bet (~6y). Uranium upkeep.");
             BuildDefinition buildStorage = CreateBuild("Assets/Data/Builds/Build_Storage.asset", "build_storage", "Grid Storage",
-                FuelKind.Storage, 120f, 0.98f, 2f, 0f, BuildPaymentMode.Upfront, 28f, 0f, 8, 1.5f);
+                FuelKind.Storage, 120f, 0.98f, 2f, 0f, BuildPaymentMode.Upfront, 28f, 0f, 8, 1.5f, 0.8f, 0f,
+                "Peak insurance; no fuel.");
+            BuildDefinition buildOffshore = CreateBuild("Assets/Data/Builds/Build_OffshoreWind.asset", "build_offshore_wind", "Offshore Wind",
+                FuelKind.Wind, 220f, 0.93f, 6f, 0f, BuildPaymentMode.PerQuarter, 26f, 10f, 12, 1.5f, 1.8f, 0f,
+                "High CF coastal wind. Costly, clean, storm-exposed.");
+            BuildDefinition buildBiomass = CreateBuild("Assets/Data/Builds/Build_Biomass.asset", "build_biomass", "Biomass CHP",
+                FuelKind.Biomass, 140f, 0.9f, 28f, 0f, BuildPaymentMode.PerQuarter, 16f, 7f, 8, 1f, 2.4f, 0.25f,
+                "Dispatchable clean-ish heat+power. Feedstock upkeep, no oil link.");
 
             EventDefinition oilShock = CreateEvent("Assets/Data/Events/Event_OilPriceShock.asset",
                 "oil_shock", "Oil Price Shock",
@@ -51,11 +60,11 @@ namespace MinistryOfPower.EditorTools
             EventDefinition coldSnap = CreateEvent("Assets/Data/Events/Event_ColdSnap.asset",
                 "cold_snap", "Cold Snap",
                 "Heating load spikes. Thin firm cover and gas stocks hurt hardest.",
-                PendingEventKind.ColdSnap, 0.85f, 0.2f);
+                PendingEventKind.ColdSnap, 1f, 0.2f);
             EventDefinition storm = CreateEvent("Assets/Data/Events/Event_StormOutage.asset",
                 "storm_outage", "Storm Outage",
                 "Lines and renewables take weather damage; interconnectors wobble.",
-                PendingEventKind.StormOutage, 0.8f, 0.12f);
+                PendingEventKind.StormOutage, 1f, 0.12f);
 
             var eventDeck = new System.Collections.Generic.List<EventDefinition>
             {
@@ -88,8 +97,19 @@ namespace MinistryOfPower.EditorTools
                 Entry(nuclear, "Legacy Nuke", 180f),
                 Entry(wind, "Plains Wind", 110f)
             };
-            usa.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition> { buildSolar, buildNuke, buildStorage };
+            usa.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>
+            {
+                buildSolar, buildNuke, buildStorage, buildOffshore, buildBiomass
+            };
             usa.EventDeck = eventDeck;
+            // Federal: cold-heavy winters, milder storms than Sun-Rich coasts.
+            usa.EventWeightOverrides = new System.Collections.Generic.List<ScenarioEventWeightOverride>
+            {
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.ColdSnap, BaseWeight = 1.35f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.StormOutage, BaseWeight = 0.9f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.OilPriceShock, BaseWeight = 1.45f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.ImportDisruption, BaseWeight = 0.4f }
+            };
             EditorUtility.SetDirty(usa);
 
             ScenarioDefinition sun = CreateOrLoadScenario("Assets/Data/Scenarios/Scenario_SunRichLowBudget.asset");
@@ -117,8 +137,20 @@ namespace MinistryOfPower.EditorTools
                 Entry(solar, "Desert Solar Parks", 160f),
                 Entry(hydro, "River Hydro", 140f)
             };
-            sun.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition> { buildSolar, buildNuke, buildStorage };
+            sun.AvailableBuilds = new System.Collections.Generic.List<BuildDefinition>
+            {
+                buildSolar, buildNuke, buildStorage, buildOffshore, buildBiomass
+            };
             sun.EventDeck = eventDeck;
+            // Sun-Rich: heat/drought/import/storm; cold still present but not Federal-level.
+            sun.EventWeightOverrides = new System.Collections.Generic.List<ScenarioEventWeightOverride>
+            {
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.ColdSnap, BaseWeight = 1.1f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.StormOutage, BaseWeight = 1.2f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.Drought, BaseWeight = 1.35f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.Heatwave, BaseWeight = 1.25f },
+                new ScenarioEventWeightOverride { Kind = PendingEventKind.ImportDisruption, BaseWeight = 1.55f }
+            };
             EditorUtility.SetDirty(sun);
 
             AssetDatabase.SaveAssets();
@@ -163,11 +195,13 @@ namespace MinistryOfPower.EditorTools
 
         private static BuildDefinition CreateBuild(
             string path, string id, string display, FuelKind fuel, float mw, float avail, float cost, float oil,
-            BuildPaymentMode mode, float upfront, float quarterly, int quarters, float lobbyPenalty)
+            BuildPaymentMode mode, float upfront, float quarterly, int quarters, float lobbyPenalty,
+            float upkeep, float dailyFuel, string desc)
         {
             var asset = LoadOrCreate<BuildDefinition>(path);
             asset.Id = id;
             asset.DisplayName = display;
+            asset.Description = desc;
             asset.ResultFuel = fuel;
             asset.ResultCapacityMw = mw;
             asset.ResultAvailability = avail;
@@ -178,6 +212,8 @@ namespace MinistryOfPower.EditorTools
             asset.QuarterlyCost = quarterly;
             asset.DurationQuarters = quarters;
             asset.FossilLobbyConfidencePenalty = lobbyPenalty;
+            asset.QuarterlyUpkeep = upkeep;
+            asset.DailyFuelUse = dailyFuel;
             EditorUtility.SetDirty(asset);
             return asset;
         }

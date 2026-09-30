@@ -16,5 +16,5 @@ MonoBehaviour:
   DisplayName: Cold Snap
   Description: Heating load spikes. Thin firm cover and gas stocks hurt hardest.
   Kind: 6
-  BaseWeight: 0.85
+  BaseWeight: 1
   CrisisOilShareThreshold: 0.2

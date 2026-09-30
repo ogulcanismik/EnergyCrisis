@@ -13,6 +13,14 @@ namespace MinistryOfPower.Data
         public float CapacityMwOverride;
     }
 
+    /// <summary>Per-scenario weight override for a deck event kind (ColdSnap/Storm, etc.).</summary>
+    [Serializable]
+    public sealed class ScenarioEventWeightOverride
+    {
+        public PendingEventKind Kind;
+        [Range(0f, 2f)] public float BaseWeight = 1f;
+    }
+
     [CreateAssetMenu(menuName = "Ministry of Power/Scenario Definition", fileName = "Scenario_")]
     public sealed class ScenarioDefinition : ScriptableObject
     {
@@ -36,6 +44,8 @@ namespace MinistryOfPower.Data
         public List<ScenarioPlantEntry> StartingPlants = new List<ScenarioPlantEntry>();
         public List<BuildDefinition> AvailableBuilds = new List<BuildDefinition>();
         public List<EventDefinition> EventDeck = new List<EventDefinition>();
+        [Tooltip("Optional per-kind weight overrides (Federal cold-heavy vs Sun-Rich storm/import-heavy).")]
+        public List<ScenarioEventWeightOverride> EventWeightOverrides = new List<ScenarioEventWeightOverride>();
 
         public ScenarioConfig ToConfig()
         {
@@ -63,10 +73,13 @@ namespace MinistryOfPower.Data
             {
                 EventDefinition evt = EventDeck[i];
                 if (evt == null) continue;
+                float w = evt.BaseWeight > 0f ? evt.BaseWeight : 1f;
+                float overridden = FindOverrideWeight(evt.Kind);
+                if (overridden > 0f) w = overridden;
                 config.EventWeights.Add(new EventWeightConfig
                 {
                     Kind = evt.Kind,
-                    BaseWeight = evt.BaseWeight > 0f ? evt.BaseWeight : 1f
+                    BaseWeight = w
                 });
             }
 
@@ -97,6 +110,19 @@ namespace MinistryOfPower.Data
             }
 
             return list;
+        }
+
+        private float FindOverrideWeight(PendingEventKind kind)
+        {
+            if (EventWeightOverrides == null) return 0f;
+            for (int i = 0; i < EventWeightOverrides.Count; i++)
+            {
+                ScenarioEventWeightOverride o = EventWeightOverrides[i];
+                if (o != null && o.Kind == kind && o.BaseWeight > 0f)
+                    return o.BaseWeight;
+            }
+
+            return 0f;
         }
     }
 }

@@ -16,5 +16,5 @@ MonoBehaviour:
   DisplayName: Storm Outage
   Description: Lines and renewables take weather damage; interconnectors wobble.
   Kind: 7
-  BaseWeight: 0.8
+  BaseWeight: 1
   CrisisOilShareThreshold: 0.12

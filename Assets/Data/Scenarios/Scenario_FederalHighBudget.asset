@@ -52,6 +52,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c0e937e7e0d89144e9c3e4e8f033b39c, type: 2}
   - {fileID: 11400000, guid: 5ab8fcb81e5f64b488f97436e3cd4bb2, type: 2}
   - {fileID: 11400000, guid: 0f51dfe6c8b7beb44baa24e299bd96f8, type: 2}
+  - {fileID: 11400000, guid: d1e5a83b6c4f0273c0a77b8e1f34d2a5, type: 2}
+  - {fileID: 11400000, guid: e2f6b94c7d501384d1b88c9f2a45e3b6, type: 2}
   EventDeck:
   - {fileID: 11400000, guid: 9d7e274ca1b489b40a3c62d86ddfd6a6, type: 2}
   - {fileID: 11400000, guid: bd968f7f615c9364988a6d16fb095955, type: 2}
@@ -59,3 +61,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: dcb267d249da53242a0aa55506d43277, type: 2}
   - {fileID: 11400000, guid: a7c3e91f4b2d8041a8e55f6c9d12b0e3, type: 2}
   - {fileID: 11400000, guid: b8d4f02a5c3e9152b9f66a7d0e23c1f4, type: 2}
+  EventWeightOverrides:
+  - Kind: 6
+    BaseWeight: 1.35
+  - Kind: 7
+    BaseWeight: 0.9
+  - Kind: 1
+    BaseWeight: 1.45
+  - Kind: 4
+    BaseWeight: 0.4

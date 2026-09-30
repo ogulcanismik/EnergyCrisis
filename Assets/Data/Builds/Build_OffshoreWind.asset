@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4c4adc4d3db817479ee1630cd6fe490, type: 3}
-  m_Name: Build_Storage
+  m_Name: Build_OffshoreWind
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.BuildDefinition
-  Id: build_storage
-  DisplayName: Grid Storage
-  Description: Peak insurance; no fuel.
-  ResultFuel: 7
-  ResultCapacityMw: 120
-  ResultAvailability: 0.98
-  ResultVariableCost: 2
+  Id: build_offshore_wind
+  DisplayName: Offshore Wind
+  Description: High CF coastal wind. Costly, clean, storm-exposed.
+  ResultFuel: 4
+  ResultCapacityMw: 220
+  ResultAvailability: 0.93
+  ResultVariableCost: 6
   ResultOilExposure: 0
-  PaymentMode: 0
-  UpfrontCost: 28
-  QuarterlyCost: 0
-  DurationQuarters: 8
-  QuarterlyUpkeep: 0.8
+  PaymentMode: 1
+  UpfrontCost: 26
+  QuarterlyCost: 10
+  DurationQuarters: 12
+  QuarterlyUpkeep: 1.8
   DailyFuelUse: 0
   FossilLobbyConfidencePenalty: 1.5

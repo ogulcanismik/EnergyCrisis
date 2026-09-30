@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.BuildDefinition
   Id: build_solar
   DisplayName: Utility Solar Park
-  Description: 
+  Description: Fast clean capacity. Weather-sensitive.
   ResultFuel: 3
   ResultCapacityMw: 180
   ResultAvailability: 0.95

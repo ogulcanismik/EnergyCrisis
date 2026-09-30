@@ -222,6 +222,44 @@ namespace MinistryOfPower.EditorTools
                 sb.Append("continueSubtitle=").Append(saved && contMeta.Occupied && !string.IsNullOrEmpty(contMeta.ScenarioName))
                     .Append(" scenario=").Append(contMeta.ScenarioName ?? "—").AppendLine();
                 sb.AppendLine("P7 sim smoke OK");
+
+                sb.AppendLine("=== P8 SIM SMOKE ===");
+                BuildDefinition offAsset = AssetDatabase.LoadAssetAtPath<BuildDefinition>(
+                    "Assets/Data/Builds/Build_OffshoreWind.asset");
+                BuildDefinition bioAsset = AssetDatabase.LoadAssetAtPath<BuildDefinition>(
+                    "Assets/Data/Builds/Build_Biomass.asset");
+                bool hasOffSo = offAsset != null && offAsset.Id == "build_offshore_wind";
+                bool hasBioSo = bioAsset != null && bioAsset.Id == "build_biomass";
+                sb.Append("buildSoOffshore=").Append(hasOffSo)
+                    .Append(" buildSoBiomass=").Append(hasBioSo)
+                    .AppendLine();
+
+                ScenarioDefinition fedSo = AssetDatabase.LoadAssetAtPath<ScenarioDefinition>(
+                    "Assets/Data/Scenarios/Scenario_FederalHighBudget.asset");
+                ScenarioDefinition sunSo = AssetDatabase.LoadAssetAtPath<ScenarioDefinition>(
+                    "Assets/Data/Scenarios/Scenario_SunRichLowBudget.asset");
+                float fedCold = WeightOf(fedSo, PendingEventKind.ColdSnap);
+                float fedStorm = WeightOf(fedSo, PendingEventKind.StormOutage);
+                float sunCold = WeightOf(sunSo, PendingEventKind.ColdSnap);
+                float sunStorm = WeightOf(sunSo, PendingEventKind.StormOutage);
+                sb.Append("fedCold=").Append(fedCold.ToString("0.00"))
+                    .Append(" fedStorm=").Append(fedStorm.ToString("0.00"))
+                    .Append(" sunCold=").Append(sunCold.ToString("0.00"))
+                    .Append(" sunStorm=").Append(sunStorm.ToString("0.00")).AppendLine();
+                bool tuned = fedCold > sunCold && sunStorm > fedStorm && fedCold > 1f && sunStorm > 1f;
+                sb.Append("deckTuned=").Append(tuned).AppendLine();
+
+                bool buildsOnFed = ScenarioHasBuild(fedSo, "build_offshore_wind")
+                                   && ScenarioHasBuild(fedSo, "build_biomass");
+                sb.Append("scenarioCatalogOffBio=").Append(buildsOnFed).AppendLine();
+
+                EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+                var menu = UnityEngine.Object.FindFirstObjectByType<MainMenuController>();
+                bool hasMenu = menu != null;
+                sb.Append("mainMenuScene=").Append(hasMenu).AppendLine();
+                bool p8Ok = hasOffSo && hasBioSo && tuned && buildsOnFed && hasMenu;
+                sb.Append("p8Ok=").Append(p8Ok).AppendLine();
+                sb.AppendLine(p8Ok ? "P8 sim smoke OK" : "P8 sim smoke FAIL");
             }
             catch (Exception ex)
             {
@@ -229,6 +267,31 @@ namespace MinistryOfPower.EditorTools
             }
 
             return sb.ToString();
+        }
+
+        private static float WeightOf(ScenarioDefinition so, PendingEventKind kind)
+        {
+            if (so == null) return 0f;
+            ScenarioConfig cfg = so.ToConfig();
+            for (int i = 0; i < cfg.EventWeights.Count; i++)
+            {
+                if (cfg.EventWeights[i].Kind == kind)
+                    return cfg.EventWeights[i].BaseWeight;
+            }
+
+            return 0f;
+        }
+
+        private static bool ScenarioHasBuild(ScenarioDefinition so, string id)
+        {
+            if (so?.AvailableBuilds == null) return false;
+            for (int i = 0; i < so.AvailableBuilds.Count; i++)
+            {
+                if (so.AvailableBuilds[i] != null && so.AvailableBuilds[i].Id == id)
+                    return true;
+            }
+
+            return false;
         }
 
         private static string RunPlay()
@@ -254,7 +317,9 @@ namespace MinistryOfPower.EditorTools
         }
 
         private const string PlayOutName = "mop_play_smoke.txt";
+        private const string MenuOutName = "mop_menu_smoke.txt";
         private const string PlaySmokeKey = "MoP.PlaySmokeArmed";
+        private const string MenuSmokeKey = "MoP.MenuSmokeArmed";
         private static double _playEnteredAt;
 
         [InitializeOnLoadMethod]
@@ -262,12 +327,104 @@ namespace MinistryOfPower.EditorTools
         {
             EditorApplication.playModeStateChanged -= OnPlaySmokeState;
             EditorApplication.playModeStateChanged += OnPlaySmokeState;
+            EditorApplication.playModeStateChanged -= OnMenuSmokeState;
+            EditorApplication.playModeStateChanged += OnMenuSmokeState;
             if (SessionState.GetBool(PlaySmokeKey, false) && EditorApplication.isPlaying)
             {
                 _playEnteredAt = EditorApplication.timeSinceStartup;
                 EditorApplication.update -= OnPlaySmokeTick;
                 EditorApplication.update += OnPlaySmokeTick;
             }
+
+            if (SessionState.GetBool(MenuSmokeKey, false) && EditorApplication.isPlaying)
+            {
+                _playEnteredAt = EditorApplication.timeSinceStartup;
+                EditorApplication.update -= OnMenuSmokeTick;
+                EditorApplication.update += OnMenuSmokeTick;
+            }
+        }
+
+        [MenuItem("Ministry of Power/Verify Main Menu Smoke")]
+        public static void VerifyMainMenuSmokeMenu()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                EditorApplication.isPlaying = false;
+                EditorApplication.delayCall += VerifyMainMenuSmokeMenu;
+                return;
+            }
+
+            GameSettings.HelpSeen = true;
+            EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+            SessionState.SetBool(MenuSmokeKey, true);
+            EditorApplication.isPlaying = true;
+            Debug.Log("Main menu smoke armed — entering Play Mode.");
+        }
+
+        private static void OnMenuSmokeState(PlayModeStateChange change)
+        {
+            if (!SessionState.GetBool(MenuSmokeKey, false)) return;
+            if (change == PlayModeStateChange.EnteredPlayMode)
+            {
+                _playEnteredAt = EditorApplication.timeSinceStartup;
+                EditorApplication.update -= OnMenuSmokeTick;
+                EditorApplication.update += OnMenuSmokeTick;
+            }
+            else if (change == PlayModeStateChange.ExitingPlayMode)
+            {
+                EditorApplication.update -= OnMenuSmokeTick;
+            }
+        }
+
+        private static void OnMenuSmokeTick()
+        {
+            if (!SessionState.GetBool(MenuSmokeKey, false) || !EditorApplication.isPlaying) return;
+            var menu = UnityEngine.Object.FindFirstObjectByType<MainMenuController>();
+            if (menu == null)
+            {
+                if (EditorApplication.timeSinceStartup - _playEnteredAt > 12)
+                {
+                    EditorApplication.update -= OnMenuSmokeTick;
+                    SessionState.SetBool(MenuSmokeKey, false);
+                    File.WriteAllText(
+                        Path.Combine(Application.persistentDataPath, MenuOutName),
+                        "=== MENU SMOKE ===\nFAIL no MainMenuController\n",
+                        Encoding.UTF8);
+                    EditorApplication.isPlaying = false;
+                }
+
+                return;
+            }
+
+            if (EditorApplication.timeSinceStartup - _playEnteredAt < 0.6) return;
+
+            EditorApplication.update -= OnMenuSmokeTick;
+            SessionState.SetBool(MenuSmokeKey, false);
+
+            var sb = new StringBuilder(512);
+            sb.AppendLine("=== MENU SMOKE ===");
+            try
+            {
+                sb.Append("rootTitle=").Append(menu.SmokeTitle).AppendLine();
+                bool ok = menu.SmokeNavigateToDifficulty("usa_like", out string title, out string body);
+                sb.Append("difficultyTitle=").Append(title).AppendLine();
+                sb.Append("difficultyBodyHasTreasury=")
+                    .Append(body.IndexOf("treasury", StringComparison.OrdinalIgnoreCase) >= 0).AppendLine();
+                bool sunOk = menu.SmokeNavigateToDifficulty("sun_rich", out string sunTitle, out string sunBody);
+                sb.Append("sunDifficulty=").Append(sunOk)
+                    .Append(" sunName=").Append(sunBody.IndexOf("Sun-Rich", StringComparison.Ordinal) >= 0)
+                    .AppendLine();
+                sb.AppendLine(ok && sunOk ? "MENU SMOKE OK" : "MENU SMOKE FAIL");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine("MENU FAIL: " + ex);
+            }
+
+            string path = Path.Combine(Application.persistentDataPath, MenuOutName);
+            File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+            Debug.Log(sb.ToString());
+            EditorApplication.isPlaying = false;
         }
 
         [MenuItem("Ministry of Power/Verify Play Smoke")]
