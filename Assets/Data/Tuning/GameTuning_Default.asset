@@ -35,6 +35,9 @@ MonoBehaviour:
   zoomStep: 1.1
   pngWorldSize: {x: 26.2, y: 19.65}
   pngWorldOffset: {x: -0.1, y: -0.85}
+  oceanWorldSize: {x: 40, y: 28}
+  oceanWorldOffset: {x: -0.1, y: -0.85}
+  oceanSortingOrder: -10
   terminatorNightAlpha: 0.72
   terminatorSoftness: 0.14
   terminatorLonSpan: 1.05

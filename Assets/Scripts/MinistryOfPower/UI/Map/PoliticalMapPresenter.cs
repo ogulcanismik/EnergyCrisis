@@ -15,6 +15,7 @@ namespace MinistryOfPower.UI.Map
     {
         [SerializeField] private bool sunRichTint;
         [SerializeField] private Sprite prototypeMapSprite;
+        [SerializeField] private Sprite oceanMapSprite;
 
         private Transform _root;
         private Transform _plantRoot;
@@ -118,14 +119,10 @@ namespace MinistryOfPower.UI.Map
                                       ?? Shader.Find("Universal Render Pipeline/Unlit")
                                       ?? Shader.Find("Standard"));
 
+            // Ocean sits under land art (and under terminator). Always build first.
+            BuildOcean();
             if (UsaMapLayout.UsePrototypeArt)
-            {
                 BuildPrototypeArt();
-            }
-            else
-            {
-                BuildOcean();
-            }
 
             BuildStates();
             BuildCorridors();
@@ -163,8 +160,7 @@ namespace MinistryOfPower.UI.Map
             Sprite sprite = prototypeMapSprite != null ? prototypeMapSprite : LoadPrototypeSprite();
             if (sprite == null)
             {
-                Debug.LogWarning("PoliticalMapPresenter: prototype map sprite missing; falling back to ocean plate.");
-                BuildOcean();
+                Debug.LogWarning("PoliticalMapPresenter: prototype map sprite missing; ocean backdrop only.");
                 return;
             }
 
@@ -226,17 +222,75 @@ namespace MinistryOfPower.UI.Map
 
         private void BuildOcean()
         {
-            var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ocean.name = "OceanBackdrop";
+            Transform existing = _root != null ? _root.Find("MapOcean") : null;
+            if (existing != null) SafeDestroy(existing.gameObject);
+            // Legacy name from the coloured plane backdrop.
+            Transform legacy = _root != null ? _root.Find("OceanBackdrop") : null;
+            if (legacy != null) SafeDestroy(legacy.gameObject);
+
+            Sprite sprite = oceanMapSprite != null ? oceanMapSprite : LoadOceanSprite();
+            Vector2 size = ResolveOceanSize();
+            Vector2 center = ResolveOceanCenter();
+            int sort = ResolveOceanSortingOrder();
+
+            if (sprite == null)
+            {
+                // Fallback: tinted plane so the map never sits on a void.
+                var plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                plane.name = "MapOcean";
+                plane.transform.SetParent(_root, false);
+                plane.transform.position = new Vector3(center.x, UsaMapLayout.OceanHeight, center.y);
+                plane.transform.localScale = new Vector3(size.x / 10f, 1f, size.y / 10f);
+                ApplyColor(plane, UsaMapLayout.OceanFill(sunRichTint));
+                var col = plane.GetComponent<Collider>();
+                if (col != null) SafeDestroy(col);
+                return;
+            }
+
+            var ocean = new GameObject("MapOcean");
             ocean.transform.SetParent(_root, false);
-            ocean.transform.position = new Vector3(0f, UsaMapLayout.OceanHeight, 0f);
-            ocean.transform.localScale = new Vector3(
-                UsaMapLayout.OceanSize.x / 10f,
-                1f,
-                UsaMapLayout.OceanSize.y / 10f);
-            ApplyColor(ocean, UsaMapLayout.OceanFill(sunRichTint));
-            var col = ocean.GetComponent<Collider>();
-            if (col != null) SafeDestroy(col);
+            ocean.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            ocean.transform.position = new Vector3(center.x, UsaMapLayout.OceanHeight, center.y);
+
+            var sr = ocean.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = Color.white;
+            sr.sortingOrder = sort;
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
+
+            // Stretch to cover OceanSize (aspect may differ from the placeholder JPG).
+            Vector2 natural = sprite.bounds.size;
+            float sx = natural.x > 0.0001f ? size.x / natural.x : 1f;
+            float sy = natural.y > 0.0001f ? size.y / natural.y : 1f;
+            ocean.transform.localScale = new Vector3(sx, sy, 1f);
+        }
+
+        private static Sprite LoadOceanSprite()
+        {
+#if UNITY_EDITOR
+            return AssetDatabase.LoadAssetAtPath<Sprite>(UsaMapLayout.OceanArtPath);
+#else
+            return Resources.Load<Sprite>("Map/ocean-placeholder");
+#endif
+        }
+
+        private static Vector2 ResolveOceanSize()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.OceanWorldSize : UsaMapLayout.OceanSize;
+        }
+
+        private static Vector2 ResolveOceanCenter()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.OceanWorldOffset : UsaMapLayout.OceanWorldCenter;
+        }
+
+        private static int ResolveOceanSortingOrder()
+        {
+            MapTuning mt = MapTuning.FindActive();
+            return mt != null ? mt.OceanSortingOrder : UsaMapLayout.OceanSortingOrder;
         }
 
         private void BuildStates()
@@ -407,10 +461,13 @@ namespace MinistryOfPower.UI.Map
         private void RebuildColors()
         {
             if (_root == null) return;
-            if (UsaMapLayout.UsePrototypeArt) return;
 
-            Transform ocean = _root.Find("OceanBackdrop");
-            if (ocean != null) ApplyColor(ocean.gameObject, UsaMapLayout.OceanFill(sunRichTint));
+            // Sprite ocean keeps its own art; only tint the legacy plane fallback.
+            Transform ocean = _root.Find("MapOcean") ?? _root.Find("OceanBackdrop");
+            if (ocean != null && ocean.GetComponent<SpriteRenderer>() == null)
+                ApplyColor(ocean.gameObject, UsaMapLayout.OceanFill(sunRichTint));
+
+            if (UsaMapLayout.UsePrototypeArt) return;
 
             if (_statesRoot == null) _statesRoot = _root.Find("States");
             if (_statesRoot == null) return;

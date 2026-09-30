@@ -102,7 +102,10 @@ namespace MinistryOfPower.EditorTools
                 bool mapArt = GameObject.Find("MapArt") != null
                               || (GameObject.Find("PoliticalMap") != null
                                   && GameObject.Find("PoliticalMap").transform.Find("MapArt") != null);
-                bool ocean = GameObject.Find("OceanBackdrop") != null;
+                bool ocean = GameObject.Find("MapOcean") != null
+                             || GameObject.Find("OceanBackdrop") != null
+                             || (GameObject.Find("PoliticalMap") != null
+                                 && GameObject.Find("PoliticalMap").transform.Find("MapOcean") != null);
 
                 int distinctCodes = 0;
                 var seen = new System.Collections.Generic.HashSet<string>();
@@ -217,7 +220,20 @@ namespace MinistryOfPower.EditorTools
                 }
 
                 bool bordersOk = UsaMapLayout.UsePrototypeArt ? borders == 0 : borders >= 50;
-                bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && !ocean);
+                // Prototype art + MapOcean sprite backdrop (ocean under land).
+                bool oceanSpriteOk = true;
+                var oceanGo = GameObject.Find("MapOcean");
+                if (oceanGo == null && GameObject.Find("PoliticalMap") != null)
+                {
+                    var t = GameObject.Find("PoliticalMap").transform.Find("MapOcean");
+                    if (t != null) oceanGo = t.gameObject;
+                }
+                if (UsaMapLayout.UsePrototypeArt)
+                {
+                    var osr = oceanGo != null ? oceanGo.GetComponent<SpriteRenderer>() : null;
+                    oceanSpriteOk = ocean && osr != null && osr.sprite != null;
+                }
+                bool artOk = !UsaMapLayout.UsePrototypeArt || (mapArt && ocean && oceanSpriteOk);
                 bool ok = map != null && camCtrl != null && political && !legacyPlane
                           && regions.Length >= UsaMapLayout.ExpectedStateCount
                           && distinctCodes >= UsaMapLayout.ExpectedStateCount
@@ -226,6 +242,7 @@ namespace MinistryOfPower.EditorTools
                           && orthoOk && panOk && zoomOk && pickOk && geoOk && artOrientOk
                           && artSpriteOk;
                 sb.Append("bordersOk=").Append(bordersOk).AppendLine();
+                sb.Append("oceanSpriteOk=").Append(oceanSpriteOk).AppendLine();
                 sb.Append("artOk=").Append(artOk).AppendLine();
                 sb.Append("USA_MAP_OK=").Append(ok).AppendLine();
                 Finish(sb.ToString());

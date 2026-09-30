@@ -24,7 +24,14 @@ namespace MinistryOfPower.UI.Map
         /// <summary>Below this ortho size (or on select), labels show full state names.</summary>
         public const float FullNameOrthoThreshold = 8.5f;
 
+        /// <summary>World XZ size of the ocean backdrop (larger than CONUS plate).</summary>
         public static readonly Vector2 OceanSize = new Vector2(40f, 28f);
+        /// <summary>World XZ center of the ocean sprite (aligned with map art by default).</summary>
+        public static readonly Vector2 OceanWorldCenter = new Vector2(-0.1f, -0.85f);
+        public const int OceanSortingOrder = -10;
+        public const string OceanArtPath = "Assets/Art/Map/ocean-placeholder.jpg";
+        /// <summary>PPU so 2752px width ≈ <see cref="OceanSize"/>.x (2752/40).</summary>
+        public const float OceanArtPixelsPerUnit = 68.8f;
 
         /// <summary>Prototype map art (480×360 CONUS + Hawaii; no Alaska in the PNG).</summary>
         public const string PrototypeArtPath = "Assets/Art/Map/usa-map-prototype.png";

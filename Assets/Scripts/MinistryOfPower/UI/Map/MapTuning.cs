@@ -18,6 +18,11 @@ namespace MinistryOfPower.UI.Map
         [SerializeField] private Vector2 pngWorldOffset = new Vector2(-0.1f, -0.85f);
         [SerializeField] private float artHeight = UsaMapLayout.ArtHeight;
 
+        [Header("Ocean backdrop")]
+        [SerializeField] private Vector2 oceanWorldSize = UsaMapLayout.OceanSize;
+        [SerializeField] private Vector2 oceanWorldOffset = UsaMapLayout.OceanWorldCenter;
+        [SerializeField] private int oceanSortingOrder = UsaMapLayout.OceanSortingOrder;
+
         [Header("Camera")]
         [SerializeField] private float defaultOrthoSize = UsaMapLayout.DefaultOrthoSize;
         [SerializeField] private float minOrthoSize = UsaMapLayout.MinOrthoSize;
@@ -38,6 +43,9 @@ namespace MinistryOfPower.UI.Map
         public Vector2 PngWorldSize => gameTuning != null ? gameTuning.pngWorldSize : pngWorldSize;
         public Vector2 PngWorldOffset => gameTuning != null ? gameTuning.pngWorldOffset : pngWorldOffset;
         public float ArtHeight => artHeight;
+        public Vector2 OceanWorldSize => gameTuning != null ? gameTuning.oceanWorldSize : oceanWorldSize;
+        public Vector2 OceanWorldOffset => gameTuning != null ? gameTuning.oceanWorldOffset : oceanWorldOffset;
+        public int OceanSortingOrder => gameTuning != null ? gameTuning.oceanSortingOrder : oceanSortingOrder;
         public float DefaultOrthoSize => gameTuning != null ? gameTuning.defaultOrthoSize : defaultOrthoSize;
         public float MinOrthoSize => gameTuning != null ? gameTuning.minOrthoSize : minOrthoSize;
         public float MaxOrthoSize => gameTuning != null ? gameTuning.maxOrthoSize : maxOrthoSize;
@@ -53,6 +61,9 @@ namespace MinistryOfPower.UI.Map
             if (tuning == null) return;
             pngWorldSize = tuning.pngWorldSize;
             pngWorldOffset = tuning.pngWorldOffset;
+            oceanWorldSize = tuning.oceanWorldSize;
+            oceanWorldOffset = tuning.oceanWorldOffset;
+            oceanSortingOrder = tuning.oceanSortingOrder;
             defaultOrthoSize = tuning.defaultOrthoSize;
             minOrthoSize = tuning.minOrthoSize;
             maxOrthoSize = tuning.maxOrthoSize;

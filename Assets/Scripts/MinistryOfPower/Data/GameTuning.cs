@@ -95,6 +95,16 @@ namespace MinistryOfPower.Data
         [Tooltip("World XZ center offset of the PNG quad.")]
         public Vector2 pngWorldOffset = new Vector2(-0.1f, -0.85f);
 
+        [Header("Map — Ocean backdrop")]
+        [Tooltip("World XZ size of the ocean sprite (larger than CONUS plate).")]
+        public Vector2 oceanWorldSize = new Vector2(40f, 28f);
+
+        [Tooltip("World XZ center offset of the ocean sprite.")]
+        public Vector2 oceanWorldOffset = new Vector2(-0.1f, -0.85f);
+
+        [Tooltip("SpriteRenderer sorting order for MapOcean (land map uses 0).")]
+        public int oceanSortingOrder = -10;
+
         [Header("Map — Day/night terminator")]
         [Tooltip("Max opacity of the night side overlay (day side stays clear).")]
         [Range(0.2f, 0.95f)]
