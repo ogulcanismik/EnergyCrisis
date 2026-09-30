@@ -144,7 +144,15 @@ namespace MinistryOfPower.UI.Map
         private static void DestroyIfExists(string name)
         {
             GameObject go = GameObject.Find(name);
-            if (go != null) Destroy(go);
+            if (go == null) return;
+            SafeDestroy(go);
+        }
+
+        private static void SafeDestroy(Object obj)
+        {
+            if (obj == null) return;
+            if (Application.isPlaying) Object.Destroy(obj);
+            else Object.DestroyImmediate(obj);
         }
 
         private void BuildPrototypeArt()
@@ -172,7 +180,7 @@ namespace MinistryOfPower.UI.Map
                 1f);
 
             var col = art.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            if (col != null) SafeDestroy(col);
 
             var mr = art.GetComponent<MeshRenderer>();
             Shader unlit = Shader.Find("Universal Render Pipeline/Unlit")
@@ -209,7 +217,7 @@ namespace MinistryOfPower.UI.Map
                 UsaMapLayout.OceanSize.y / 10f);
             ApplyColor(ocean, UsaMapLayout.OceanFill(sunRichTint));
             var col = ocean.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            if (col != null) SafeDestroy(col);
         }
 
         private void BuildStates()

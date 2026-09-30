@@ -36,12 +36,19 @@ namespace MinistryOfPower.Runtime
             var r = GetComponent<Renderer>();
             if (r != null)
             {
-                if (r.material == null || r.sharedMaterial == null)
+                if (r.sharedMaterial == null)
                 {
-                    r.material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                    r.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
                 }
 
-                r.material.color = color;
+                // Assign an instance only when color differs, avoiding edit-mode material leaks.
+                var mat = r.sharedMaterial;
+                if (mat.color != color)
+                {
+                    mat = new Material(mat);
+                    mat.color = color;
+                    r.sharedMaterial = mat;
+                }
             }
         }
 
@@ -66,14 +73,20 @@ namespace MinistryOfPower.Runtime
             // Invisible pick meshes (prototype PNG art mode) skip hover wash.
             if (baseFill.a < 0.05f) return;
             var r = GetComponent<Renderer>();
-            if (r != null) r.material.color = Color.Lerp(baseFill, Color.white, 0.25f);
+            if (r == null || r.sharedMaterial == null) return;
+            var mat = new Material(r.sharedMaterial);
+            mat.color = Color.Lerp(baseFill, Color.white, 0.25f);
+            r.sharedMaterial = mat;
         }
 
         private void OnMouseExit()
         {
             if (baseFill.a < 0.05f) return;
             var r = GetComponent<Renderer>();
-            if (r != null) r.material.color = baseFill;
+            if (r == null || r.sharedMaterial == null) return;
+            var mat = new Material(r.sharedMaterial);
+            mat.color = baseFill;
+            r.sharedMaterial = mat;
         }
 
         public static Color BaseColor(RegionId id)
