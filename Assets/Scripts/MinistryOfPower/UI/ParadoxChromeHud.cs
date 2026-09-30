@@ -25,8 +25,7 @@ namespace MinistryOfPower.UI
             Mandate,
             Budget,
             History,
-            Cabinet,
-            Pause
+            Cabinet
         }
 
         private Text _dateTimeText;
@@ -85,7 +84,6 @@ namespace MinistryOfPower.UI
         private GameObject _dealActions;
         private GameObject _policyActions;
         private GameObject _cabinetActions;
-        private GameObject _pauseActions;
         private GameObject _crisisStdActions;
         private GameObject _crisisShedActions;
         private readonly Button[] _queueCancelBtns = new Button[5];
@@ -118,8 +116,6 @@ namespace MinistryOfPower.UI
         private Action<CrisisChoice> _onCabinet;
         private Action _onEmergencyImport;
         private Action _onPrivateReserve;
-        private Action<int> _onSaveSlot;
-        private Action<int> _onLoadSlot;
         private Action _onResign;
         private Func<GameSession> _session;
 
@@ -141,7 +137,7 @@ namespace MinistryOfPower.UI
             Action<string> onBuild, Action<string> onCancelBuild, Action<string> onRetire,
             Action<CrisisChoice> onCrisis, Action<CrisisChoice> onCabinet,
             Action onEmergencyImport, Action onPrivateReserve,
-            Action<int> onSaveSlot, Action<int> onLoadSlot, Action onResign)
+            Action onResign)
         {
             _session = session;
             _onPause = onPause;
@@ -157,8 +153,6 @@ namespace MinistryOfPower.UI
             _onCabinet = onCabinet;
             _onEmergencyImport = onEmergencyImport;
             _onPrivateReserve = onPrivateReserve;
-            _onSaveSlot = onSaveSlot;
-            _onLoadSlot = onLoadSlot;
             _onResign = onResign;
             EnsureUi();
             MaybeShowFirstRunHelp();
@@ -542,7 +536,6 @@ namespace MinistryOfPower.UI
                 _dealBriefToggleLabel.text = _dealBriefOpen ? "Deal briefing ▴" : "Deal briefing ▾";
             if (_policyActions != null) _policyActions.SetActive(_openMenu == MenuId.Policy);
             if (_cabinetActions != null) _cabinetActions.SetActive(true); // always on right drawer
-            if (_pauseActions != null) _pauseActions.SetActive(_openMenu == MenuId.Pause);
 
             SyncReportsFlyout();
             LayoutPanelBodyForCharts(_openMenu == MenuId.Mandate || _openMenu == MenuId.Budget);
@@ -588,13 +581,6 @@ namespace MinistryOfPower.UI
                 case MenuId.Cabinet:
                     _panelTitle.text = "CABINET";
                     _panelBody.text = BuildCabinetText(s);
-                    break;
-                case MenuId.Pause:
-                    _panelTitle.text = "PAUSE / SAVE";
-                    _panelBody.text =
-                        "Slot 1 = Quicksave (F5) / autosave every 30 days.\n" +
-                        "Resign returns to main menu.\n\n" +
-                        (s.Difficulty != null ? s.Difficulty.FormatSummary(s.Scenario.StartingBudget) : "");
                     break;
                 default:
                     _panelTitle.text = "";
@@ -937,7 +923,7 @@ namespace MinistryOfPower.UI
             }
             else if (IsPrimaryLeftMenu(_openMenu))
             {
-                // Construction / Policy / Investment / Pause close Reports entirely.
+                // Construction / Policy / Investment close Reports entirely.
                 _reportsOpen = false;
             }
             else if (_openMenu == MenuId.None || _openMenu == MenuId.Cabinet)
@@ -959,8 +945,7 @@ namespace MinistryOfPower.UI
 
         private static bool IsPrimaryLeftMenu(MenuId id)
         {
-            return id == MenuId.Construction || id == MenuId.Policy
-                   || id == MenuId.Deals || id == MenuId.Pause;
+            return id == MenuId.Construction || id == MenuId.Policy || id == MenuId.Deals;
         }
 
         private void ToggleReportsFlyout()
@@ -986,7 +971,7 @@ namespace MinistryOfPower.UI
 
         private void SyncReportsFlyout()
         {
-            // Exclusive: flyout never stacks beside Construction/Policy/Investment/Pause.
+            // Exclusive: flyout never stacks beside Construction/Policy/Investment.
             if (IsPrimaryLeftMenu(_openMenu))
                 _reportsOpen = false;
 
@@ -1145,7 +1130,6 @@ namespace MinistryOfPower.UI
                 "Budget, history, mandate, mix, resources");
             _reportsToggleLabel = reportsBtn.GetComponentInChildren<Text>();
             ly -= 0.065f;
-            MenuBtn(canvasGo.transform, "Pause", MenuId.Pause, ref ly, "Save / load / F5");
 
             var reportsFly = UiFactory.Panel(canvasGo.transform, "ReportsFlyout",
                 new Vector2(0.11f, 0.48f), new Vector2(0.24f, 0.88f), UiFactory.Hex("2B2118"));
@@ -1260,34 +1244,9 @@ namespace MinistryOfPower.UI
                 () => _onCabinet?.Invoke(CrisisChoice.EmergencyFossil), UiFactory.Hex("6B4E30"), paper, 12,
                 "Buy adequacy with treasury and transition.");
 
-            var pauseHost = UiFactory.Panel(side.transform, "PauseActions", new Vector2(0f, 0f), new Vector2(1f, 0.28f), new Color(0, 0, 0, 0));
-            _pauseActions = pauseHost.gameObject;
-            for (int i = 0; i < 5; i++)
-            {
-                int slot = i;
-                float x0 = 0.04f + i * 0.19f;
-                string saveLabel = i == 0 ? "QS/Auto" : "Save " + (i + 1);
-                string loadLabel = i == 0 ? "Load QS" : "Load " + (i + 1);
-                UiFactory.Button(pauseHost.transform, "Save" + i, saveLabel,
-                    new Vector2(x0, 0.55f), new Vector2(x0 + 0.17f, 0.95f),
-                    () => _onSaveSlot?.Invoke(slot), UiFactory.Hex("3E5C3A"), paper, 10,
-                    i == 0 ? "Quicksave / autosave slot" : "Save slot " + (i + 1));
-                UiFactory.Button(pauseHost.transform, "Load" + i, loadLabel,
-                    new Vector2(x0, 0.28f), new Vector2(x0 + 0.17f, 0.52f),
-                    () => _onLoadSlot?.Invoke(slot), UiFactory.Hex("30506B"), paper, 10);
-            }
-
-            UiFactory.Button(pauseHost.transform, "Resign", "Resign to Menu",
-                new Vector2(0.2f, 0.02f), new Vector2(0.8f, 0.24f),
-                () => RequestConfirm("RESIGN?",
-                    "Leave the desk and return to the main menu.\nUnsaved progress since last save is lost.",
-                    () => _onResign?.Invoke()),
-                UiFactory.Hex("6B3030"), paper, 12);
-
             _buildActions.SetActive(false);
             _dealActions.SetActive(false);
             _policyActions.SetActive(false);
-            _pauseActions.SetActive(false);
             _leftPanel.SetActive(false);
 
             // ——— RIGHT DRAWER: Cabinet + Lobby (deep lobby copy behind submenu) ———
@@ -1457,7 +1416,9 @@ namespace MinistryOfPower.UI
                 new Vector2(0.06f, 0.2f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft).text =
                 "Paradox desk shell — one HUD, exclusive left tabs.\n\n" +
                 "· Top: treasury / conf / margin · compact date+hour above Pause/1x/2x/5x.\n" +
-                "· Left: Construction / Policy / Investment · Reports submenu · Pause (one at a time).\n" +
+                "· Left: Construction / Policy / Investment · Reports submenu (one at a time).\n" +
+                "· ESC: pause menu — Save / Load / Settings / Resign.\n" +
+                "· F5: silent Quick Save to slot 1 (also autosaves every 30 days).\n" +
                 "· Right: Lobby meters (+ info submenu) · Cabinet levers.\n" +
                 "· Bottom: 24h load/supply chart + emergency import/reserve.\n" +
                 "· Map center: USA grey-box regions, plants, transmission lines.\n" +

@@ -19,6 +19,8 @@ namespace MinistryOfPower.UI
         private Text _title;
         private Text _body;
         private Transform _buttonRoot;
+        private Transform _canvasRoot;
+        private SaveSlotModal _slotModal;
 
         private void Start()
         {
@@ -57,6 +59,7 @@ namespace MinistryOfPower.UI
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            _canvasRoot = canvasGo.transform;
 
             UiFactory.Panel(canvasGo.transform, "Bg", Vector2.zero, Vector2.one, UiFactory.Hex("1A1410"));
             UiFactory.Panel(canvasGo.transform, "Panel", new Vector2(0.28f, 0.12f), new Vector2(0.72f, 0.88f), UiFactory.Hex("2B2118"));
@@ -68,6 +71,7 @@ namespace MinistryOfPower.UI
             var btnHost = UiFactory.Panel(panel, "Buttons", new Vector2(0.12f, 0.06f), new Vector2(0.88f, 0.6f), new Color(0, 0, 0, 0.15f));
             _buttonRoot = btnHost.transform;
             TooltipService.Ensure(canvasGo.transform);
+            _slotModal = SaveSlotModal.Ensure(canvasGo.transform);
         }
 
         private void ClearButtons()
@@ -81,7 +85,7 @@ namespace MinistryOfPower.UI
         private void ShowRoot()
         {
             _title.text = "THE MINISTRY OF POWER";
-            _body.text = "Grey-box Paradox desk — New Game, Load, Settings, or Quit.";
+            _body.text = "Grey-box Paradox desk — New Game, Load, Settings, or Quit.\nESC pause in-game for Save / Load slots.";
             ClearButtons();
             float y = 0.88f;
             int continueSlot = SaveGameSystem.FindNewestSlot();
@@ -142,22 +146,10 @@ namespace MinistryOfPower.UI
 
         private void ShowLoad()
         {
-            _title.text = "LOAD GAME";
-            _body.text = "Choose a save slot.";
-            ClearButtons();
-            float y = 0.9f;
-            SaveSlotMeta[] slots = SaveGameSystem.ListSlots();
-            for (int i = 0; i < slots.Length; i++)
-            {
-                SaveSlotMeta s = slots[i];
-                string label = s.Occupied
-                    ? $"Slot {i + 1}: {s.ScenarioName} · {s.DifficultyName} · {s.DateLabel}"
-                    : $"Slot {i + 1}: empty";
-                int slot = i;
-                AddBtn(label, s.Occupied ? () => LoadSlot(slot) : () => { }, ref y, 0.1f);
-            }
-
-            AddBtn("Back", ShowRoot, ref y, 0.1f);
+            EnsureUiBuilt();
+            if (_slotModal == null && _canvasRoot != null)
+                _slotModal = SaveSlotModal.Ensure(_canvasRoot);
+            _slotModal.Open(SaveSlotModalMode.Load, LoadSlot);
         }
 
         private void ShowSettings()

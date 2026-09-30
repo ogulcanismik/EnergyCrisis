@@ -29,6 +29,7 @@ namespace MinistryOfPower.Runtime
         private bool _eventsWired;
         private int _lastAutosaveDay = -1;
         private int _lastRenderedHour = -1;
+        private PauseMenuOverlay _pauseMenu;
 
         public GameSession Session => _session;
 
@@ -214,6 +215,21 @@ namespace MinistryOfPower.Runtime
                     PushLog(msg);
                     RefreshUi();
                 },
+                () => SceneManager.LoadScene("MainMenu"));
+
+            _pauseMenu = PauseMenuOverlay.Ensure(transform);
+            _pauseMenu.Bind(
+                () => _session,
+                () =>
+                {
+                    _session.SetSpeed(GameSpeed.Paused);
+                    RefreshUi();
+                },
+                speed =>
+                {
+                    _session.SetSpeed(speed);
+                    RefreshUi();
+                },
                 slot =>
                 {
                     SaveGameSystem.TrySave(slot, GameSessionSaveMapper.Capture(_session, slot), out string msg);
@@ -223,7 +239,8 @@ namespace MinistryOfPower.Runtime
                     RefreshUi();
                 },
                 LoadFromSlot,
-                () => SceneManager.LoadScene("MainMenu"));
+                () => SceneManager.LoadScene("MainMenu"),
+                QuitGame);
 
             if (!_eventsWired)
             {
@@ -242,6 +259,15 @@ namespace MinistryOfPower.Runtime
                 };
                 _eventsWired = true;
             }
+        }
+
+        private static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         private void HandleTip(string beat)

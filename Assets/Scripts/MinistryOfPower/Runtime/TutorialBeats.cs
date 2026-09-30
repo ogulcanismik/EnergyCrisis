@@ -49,6 +49,6 @@ namespace MinistryOfPower.Runtime
         public const string TipWinter =
             "TIP — Winter. Thin firm/storage raises peak risk. Check Resources projections and fuel cover.";
         public const string TipSave =
-            "TIP — Saved. Slot 1 is Quicksave (F5) and autosaves every 30 days. Pause for other slots.";
+            "TIP — Saved. Slot 1 is Quick Save (F5) and autosaves every 30 days. ESC → Save Game for other slots.";
     }
 }
