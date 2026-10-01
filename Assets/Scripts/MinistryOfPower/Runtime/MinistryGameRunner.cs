@@ -198,68 +198,70 @@ namespace MinistryOfPower.Runtime
 
         private void WireUi()
         {
-            if (paradoxHud == null) return;
-
+            // Pause overlay is independent of legacy chrome so ESC still works when useLegacyHud is off.
             _pauseMenu = PauseMenuOverlay.Ensure(transform);
             var uiMgr = FindFirstObjectByType<UIManager>();
             if (uiMgr != null)
                 uiMgr.EnsurePauseMenu(transform);
 
-            paradoxHud.Bind(
-                () => _session,
-                speed =>
-                {
-                    _session.SetSpeed(speed);
-                    RefreshUi();
-                },
-                id =>
-                {
-                    _session.TryStartBuild(id, out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                orderId =>
-                {
-                    _session.TryCancelBuild(orderId, out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                plantId =>
-                {
-                    _session.TryRetirePlant(string.IsNullOrEmpty(plantId) ? null : plantId, out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                choice =>
-                {
-                    if (_session.TryResolveCrisis(choice, out string msg))
+            if (paradoxHud != null)
+            {
+                paradoxHud.Bind(
+                    () => _session,
+                    speed =>
                     {
+                        _session.SetSpeed(speed);
+                        RefreshUi();
+                    },
+                    id =>
+                    {
+                        _session.TryStartBuild(id, out string msg);
                         PushLog(msg);
-                        paradoxHud.HideEvent();
-                    }
+                        RefreshUi();
+                    },
+                    orderId =>
+                    {
+                        _session.TryCancelBuild(orderId, out string msg);
+                        PushLog(msg);
+                        RefreshUi();
+                    },
+                    plantId =>
+                    {
+                        _session.TryRetirePlant(string.IsNullOrEmpty(plantId) ? null : plantId, out string msg);
+                        PushLog(msg);
+                        RefreshUi();
+                    },
+                    choice =>
+                    {
+                        if (_session.TryResolveCrisis(choice, out string msg))
+                        {
+                            PushLog(msg);
+                            paradoxHud.HideEvent();
+                        }
 
-                    RefreshUi();
-                },
-                choice =>
-                {
-                    _session.TryCabinetAction(choice, out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                () =>
-                {
-                    _session.TryBuyEmergencyImport(out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                () =>
-                {
-                    _session.TrySignPrivateReserveDeal(out string msg);
-                    PushLog(msg);
-                    RefreshUi();
-                },
-                () => SceneManager.LoadScene("MainMenu"),
-                () => _pauseMenu?.Open());
+                        RefreshUi();
+                    },
+                    choice =>
+                    {
+                        _session.TryCabinetAction(choice, out string msg);
+                        PushLog(msg);
+                        RefreshUi();
+                    },
+                    () =>
+                    {
+                        _session.TryBuyEmergencyImport(out string msg);
+                        PushLog(msg);
+                        RefreshUi();
+                    },
+                    () =>
+                    {
+                        _session.TrySignPrivateReserveDeal(out string msg);
+                        PushLog(msg);
+                        RefreshUi();
+                    },
+                    () => SceneManager.LoadScene("MainMenu"),
+                    () => _pauseMenu?.Open());
+            }
 
             _pauseMenu.Bind(
                 () => _session,
@@ -289,7 +291,7 @@ namespace MinistryOfPower.Runtime
             {
                 _session.EventRaised += evt =>
                 {
-                    paradoxHud.ShowEvent(evt);
+                    paradoxHud?.ShowEvent(evt);
                     RefreshUi();
                 };
                 _session.LogEmitted += PushLog;

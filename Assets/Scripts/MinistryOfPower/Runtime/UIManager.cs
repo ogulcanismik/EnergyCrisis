@@ -5,8 +5,9 @@ using MinistryOfPower.UI;
 namespace MinistryOfPower.Runtime
 {
     /// <summary>
-    /// Owns HUD / pause-menu references for the desk scene. Paradox chrome and ESC pause
-    /// still build at runtime; this hub keeps them discoverable in the Inspector.
+    /// Owns HUD / pause-menu references for the desk scene. Paradox chrome is gated by
+    /// <see cref="ParadoxChromeHud.UseLegacyHud"/> (default off for UI Toolkit prep);
+    /// ESC pause still builds at runtime via <see cref="PauseMenuOverlay"/>.
     /// </summary>
     public sealed class UIManager : MonoBehaviour
     {

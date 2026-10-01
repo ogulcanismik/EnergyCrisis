@@ -13,6 +13,7 @@ namespace MinistryOfPower.UI
     /// Wireframe HUD shell: top vitals + time/speeds + ESC, verb tabs with compact
     /// left content panels, right-edge Orders tab, bottom chart chips → drawers,
     /// right 24h duck drawer. Map lenses stubbed.
+    /// Gated by <see cref="useLegacyHud"/> (default off) while UI Toolkit shell lands.
     /// </summary>
     public sealed class ParadoxChromeHud : MonoBehaviour
     {
@@ -29,6 +30,13 @@ namespace MinistryOfPower.UI
             History,
             Cabinet
         }
+
+        [SerializeField]
+        [Tooltip("Build the procedural uGUI Paradox chrome. Off by default for UI Toolkit prep — re-enable to restore the desk HUD.")]
+        private bool useLegacyHud = false;
+
+        /// <summary>True when procedural uGUI chrome is allowed to build.</summary>
+        public bool UseLegacyHud => useLegacyHud;
 
         private Text _dateTimeText;
         private Text _tickText;
@@ -214,7 +222,9 @@ namespace MinistryOfPower.UI
 
         public void ShowEvent(PendingEvent evt)
         {
+            if (!useLegacyHud) return;
             EnsureUi();
+            if (_eventModal == null) return;
             _eventModal.SetActive(true);
             _eventTitle.text = evt.Title;
             string shedHint = evt.OffersLoadShed
@@ -241,6 +251,7 @@ namespace MinistryOfPower.UI
 
         public void ShowYearReport(YearReport report)
         {
+            if (!useLegacyHud) return;
             EnsureUi();
             if (_yearModal == null || report == null) return;
             _yearTitle.text = "YEAR " + report.Year + " REPORT";
@@ -259,6 +270,7 @@ namespace MinistryOfPower.UI
 
         public void ForceOpenMenu(MenuId id)
         {
+            if (!useLegacyHud) return;
             EnsureUi();
             if (IsChartMenu(id))
             {
@@ -280,6 +292,7 @@ namespace MinistryOfPower.UI
 
         public void ForceOpenChart(MenuId id)
         {
+            if (!useLegacyHud) return;
             EnsureUi();
             _chartMenu = IsChartMenu(id) ? id : MenuId.None;
             if (_chartMenu != MenuId.None)
@@ -321,6 +334,7 @@ namespace MinistryOfPower.UI
             _openRegion = id;
             GameSession s = _session?.Invoke();
             s?.SetSelectedRegion(id);
+            if (!useLegacyHud) return;
             EnsureUi();
             if (_regionPanel != null) _regionPanel.SetActive(true);
             RefreshRegionPanel(s);
@@ -330,6 +344,7 @@ namespace MinistryOfPower.UI
         private void OnPlantSelected(string plantId)
         {
             _openPlantId = plantId;
+            if (!useLegacyHud) return;
             EnsureUi();
             if (_plantPanel != null) _plantPanel.SetActive(true);
             RefreshPlantPanel(_session?.Invoke());
@@ -338,7 +353,9 @@ namespace MinistryOfPower.UI
 
         private void RequestConfirm(string title, string body, Action onYes)
         {
+            if (!useLegacyHud) return;
             EnsureUi();
+            if (_confirmModal == null || _confirmTitle == null || _confirmBody == null) return;
             _confirmTitle.text = title;
             _confirmBody.text = body;
             _confirmYes = onYes;
@@ -379,9 +396,10 @@ namespace MinistryOfPower.UI
 
         public void Render()
         {
+            if (!useLegacyHud) return;
             EnsureUi();
             GameSession s = _session?.Invoke();
-            if (s?.Clock == null) return;
+            if (s?.Clock == null || _treasuryText == null) return;
 
             SeatMeters m = s.Meters;
             ApplyTimeCluster(s);
@@ -1159,6 +1177,7 @@ namespace MinistryOfPower.UI
 
         private void EnsureUi()
         {
+            if (!useLegacyHud) return;
             if (_dateTimeText != null) return;
 
             UiFactory.EnsureEventSystem(transform);
