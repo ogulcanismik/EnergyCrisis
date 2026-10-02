@@ -40,5 +40,17 @@
                 <ui:Button text="Lens 4" name="Lens4" class="button lens"/>
             </ui:VisualElement>
         </ui:VisualElement>
+        <!-- Mid-bottom ledger drawer: host ignores picks; only LedgerDrawer receives them. -->
+        <ui:VisualElement name="LedgerDrawerHost" class="ledger-drawer-host" picking-mode="Ignore">
+            <ui:VisualElement name="LedgerDrawer" class="ledger-drawer drawer--closed-bottom" picking-mode="Position">
+                <ui:VisualElement name="LedgerDrawerHeader" class="ledger-drawer-header">
+                    <ui:Label text="Ledger" name="LedgerDrawerTitle" class="ledger-drawer-title"/>
+                    <ui:Button text="×" name="LedgerDrawerClose" class="ledger-drawer-close"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="LedgerDrawerBody" class="ledger-drawer-body">
+                    <ui:Label text="Ledger content — edit me in UI Builder." name="LedgerDrawerPlaceholder" class="ledger-drawer-placeholder"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

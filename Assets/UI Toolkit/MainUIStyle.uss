@@ -118,3 +118,86 @@
     margin-bottom: 0;
     margin-left: 0;
 }
+
+/* --- Ledger drawer (mid-bottom) --- */
+/* LedgerDrawerHost: full-width bottom overlay; picking ignored so map clicks pass through. */
+.ledger-drawer-host {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10%;
+    height: 42%;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+/* LedgerDrawer: sliding panel; motion via translate + open/closed classes. */
+.ledger-drawer {
+    width: 42%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgba(28, 24, 20, 0.94);
+    border-top-width: 2px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 0;
+    border-color: rgb(120, 88, 58);
+    padding-top: 8px;
+    padding-right: 12px;
+    padding-bottom: 10px;
+    padding-left: 12px;
+    transition-property: translate;
+    transition-duration: 0.28s;
+    transition-timing-function: ease-out;
+}
+
+/* drawer--closed-bottom: off-screen below; default start state. */
+.ledger-drawer.drawer--closed-bottom {
+    translate: 0 110%;
+}
+
+/* drawer--open-bottom: seated in host; slides up from below. */
+.ledger-drawer.drawer--open-bottom {
+    translate: 0 0;
+}
+
+/* LedgerDrawerHeader: title + optional close. */
+.ledger-drawer-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-grow: 0;
+    flex-shrink: 0;
+    height: 36px;
+    margin-bottom: 8px;
+    border-bottom-width: 1px;
+    border-color: rgb(90, 70, 48);
+    padding-bottom: 4px;
+}
+
+.ledger-drawer-title {
+    font-size: 22px;
+    color: rgb(232, 214, 186);
+    -unity-font-style: bold;
+}
+
+.ledger-drawer-close {
+    width: 32px;
+    height: 28px;
+    font-size: 18px;
+    background-color: rgb(97, 62, 42);
+    color: rgb(232, 214, 186);
+}
+
+/* LedgerDrawerBody: placeholder content editable in UI Builder. */
+.ledger-drawer-body {
+    flex-grow: 1;
+    padding-top: 6px;
+}
+
+.ledger-drawer-placeholder {
+    font-size: 16px;
+    color: rgb(180, 168, 150);
+    white-space: normal;
+}
