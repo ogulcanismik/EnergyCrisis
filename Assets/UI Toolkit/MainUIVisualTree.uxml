@@ -1,0 +1,44 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI%20Toolkit/MainUIStyle.uss?fileID=7433441132597879392&amp;guid=5bf0bee2f00385742a2913e1d0fb767f&amp;type=3#MainUIStyle"/>
+    <ui:VisualElement name="MainContainer" class="main-container">
+        <ui:VisualElement name="TopContainer" class="top-container">
+            <ui:VisualElement name="TopLeftContainer" class="top-left-container">
+                <ui:VisualElement name="Resources" class="resources">
+                    <ui:Image name="TreasuryIcon" class="resource-icon"/>
+                    <ui:Label text="$180Bn" name="TreasuryLabel" class="resourceText"/>
+                    <ui:Image name="ConfidenceIcon" class="resource-icon"/>
+                    <ui:Label text="%69" name="ConfidenceLabel" class="resourceText"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="Verbs" class="verbs">
+                    <ui:Button text="Construction" name="VerbConstruction" class="verb button"/>
+                    <ui:Button text="Deals" name="VerbDeals" class="verb button"/>
+                    <ui:Button text="Cabinet" name="VerbCabinet" class="verb button"/>
+                    <ui:Button text="Subsidies" name="VerbSubsidies" class="verb button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="TopRightContainer" class="top-right-container">
+                <ui:Label text="1/Jan/2026" name="Date" class="dateText"/>
+                <ui:VisualElement name="TimeController" class="time-controller">
+                    <ui:Button text="+" name="SpeedPlus" enable-rich-text="true" class="speed-button"/>
+                    <ui:ProgressBar value="1" title="" high-value="5" low-value="1" name="SpeedBar" class="speed-bar"/>
+                    <ui:Button text="-" name="SpeedMinus" class="speed-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="BottomContainer" class="bottom-container">
+            <ui:VisualElement name="Ledgers" class="ledgers">
+                <ui:Button text="Mix" name="LedgerMix" class="ledger button"/>
+                <ui:Button text="Fuel" name="LedgerFuel" class="ledger button"/>
+                <ui:Button text="Mandate" name="LedgerMandate" class="ledger button"/>
+                <ui:Button text="Budget" name="LedgerBudget" class="ledger button"/>
+                <ui:Button text="History" name="LedgerHistory" class="button ledger"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="MapLenses" class="map-lenses">
+                <ui:Button text="Lens 1" name="Lens1" class="lens button"/>
+                <ui:Button text="Lens 2" name="Lens2" class="button lens"/>
+                <ui:Button text="Lens 3" name="Lens3" class="button lens"/>
+                <ui:Button text="Lens 4" name="Lens4" class="button lens"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

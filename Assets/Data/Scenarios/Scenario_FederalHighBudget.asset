@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3a633eaef367b041926998650255caf, type: 3}
+  m_Name: Scenario_FederalHighBudget
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.ScenarioDefinition
+  Id: usa_like
+  DisplayName: Federal High Budget
+  Description: High treasury, fossil-heavy grid, strong oil lobby. Easy money, hard
+    politics.
+  DifferentiationBlurb: "Treasury +lobby \xB7 Solar CF ~1.0 \xB7 Imports thin (60
+    MW) \xB7 Retire fossils hurts hard (\xD71.55 lobby) \xB7 Oil-weighted shocks"
+  StartYear: 2026
+  Seed: 2026
+  CampaignYears: 20
+  StartingBudget: 180
+  QuarterlyIncome: 22
+  BaseDemandMw: 1200
+  SolarResource: 1
+  WindResource: 1.05
+  FossilLobbyStrength: 0.85
+  LobbyRetireMultiplier: 1.55
+  ImportCapacityMw: 60
+  StartingAdequacy: 74
+  StartingAffordability: 70
+  StartingTransition: 16
+  StartingConfidence: 72
+  StartingPlants:
+  - Definition: {fileID: 11400000, guid: e65862b13d0c87c4e886b0aebc566d17, type: 2}
+    OverrideName: Midwest Coal Cluster
+    CapacityMwOverride: 420
+    Region: 0
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: 3fc32d854fdbc6042a1cade1be5a6603, type: 2}
+    OverrideName: Gulf Gas Fleet
+    CapacityMwOverride: 380
+    Region: 1
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: 081384fe57d75a646980f8331f86594b, type: 2}
+    OverrideName: Coastal Oil Peak
+    CapacityMwOverride: 120
+    Region: 1
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: 2df498576507d2747955a5b6c7166c30, type: 2}
+    OverrideName: Southwest Solar
+    CapacityMwOverride: 90
+    Region: 2
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: e4f5417c83cf42e449faa4d5d3e9d1e2, type: 2}
+    OverrideName: Legacy Nuke
+    CapacityMwOverride: 180
+    Region: 0
+    RegionExplicit: 1
+  - Definition: {fileID: 11400000, guid: 8d8cf4e463f59ef4fb5d79075eefb44e, type: 2}
+    OverrideName: Plains Wind
+    CapacityMwOverride: 110
+    Region: 0
+    RegionExplicit: 1
+  AvailableBuilds:
+  - {fileID: 11400000, guid: f3a81c2d4e5b6970a1c2d3e4f5a6b7c8, type: 2}
+  - {fileID: 11400000, guid: a4b92d3e5f6c7081b2d3e4f5a6b7c8d9, type: 2}
+  - {fileID: 11400000, guid: b5c03e4f6a7d8192c3e4f5a6b7c8d9e0, type: 2}
+  - {fileID: 11400000, guid: c0e937e7e0d89144e9c3e4e8f033b39c, type: 2}
+  - {fileID: 11400000, guid: c6d14f5a7b8e92a3d4f5a6b7c8d9e0f1, type: 2}
+  - {fileID: 11400000, guid: d7e25a6b8c9f03b4e5a6b7c8d9e0f1a2, type: 2}
+  - {fileID: 11400000, guid: 0f51dfe6c8b7beb44baa24e299bd96f8, type: 2}
+  - {fileID: 11400000, guid: 5ab8fcb81e5f64b488f97436e3cd4bb2, type: 2}
+  - {fileID: 11400000, guid: d1e5a83b6c4f0273c0a77b8e1f34d2a5, type: 2}
+  - {fileID: 11400000, guid: e2f6b94c7d501384d1b88c9f2a45e3b6, type: 2}
+  EventDeck:
+  - {fileID: 11400000, guid: 9d7e274ca1b489b40a3c62d86ddfd6a6, type: 2}
+  - {fileID: 11400000, guid: bd968f7f615c9364988a6d16fb095955, type: 2}
+  - {fileID: 11400000, guid: ea838debb7da36a459838ab881a42db7, type: 2}
+  - {fileID: 11400000, guid: dcb267d249da53242a0aa55506d43277, type: 2}
+  - {fileID: 11400000, guid: a7c3e91f4b2d8041a8e55f6c9d12b0e3, type: 2}
+  - {fileID: 11400000, guid: b8d4f02a5c3e9152b9f66a7d0e23c1f4, type: 2}
+  EventWeightOverrides:
+  - Kind: 6
+    BaseWeight: 1.35
+  - Kind: 7
+    BaseWeight: 0.9
+  - Kind: 1
+    BaseWeight: 1.45
+  - Kind: 4
+    BaseWeight: 0.4

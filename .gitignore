@@ -112,3 +112,9 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Watchdog runtime
+Tools/Watchdog/STOP
+Tools/Watchdog/watchdog.pid
+Tools/Watchdog/watchdog.log
+

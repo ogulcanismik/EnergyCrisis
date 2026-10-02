@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.monitor1394.xcharts": {
+      "version": "https://github.com/XCharts-Team/XCharts.git#v3.15.0",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "7d4ba652ec873d17abdce3e6073dd4ad3955519b"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 1,
@@ -50,13 +57,6 @@
         "com.unity.mathematics": "1.2.1",
         "com.unity.modules.jsonserialize": "1.0.0"
       },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.collab-proxy": {
-      "version": "2.11.3",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
       "url": "https://packages.unity.com"
     },
     "com.unity.collections": {

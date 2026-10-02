@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4c4adc4d3db817479ee1630cd6fe490, type: 3}
+  m_Name: Build_Coal
+  m_EditorClassIdentifier: Assembly-CSharp::MinistryOfPower.Data.BuildDefinition
+  Id: build_coal
+  DisplayName: Coal Plant
+  Description: Baseload fossil. Cheap power, transition drag.
+  ResultFuel: 0
+  ResultCapacityMw: 280
+  ResultAvailability: 0.88
+  ResultVariableCost: 32
+  ResultOilExposure: 0.05
+  PaymentMode: 1
+  UpfrontCost: 22
+  QuarterlyCost: 9
+  DurationQuarters: 10
+  QuarterlyUpkeep: 4
+  DailyFuelUse: 0.45
+  FossilLobbyConfidencePenalty: 1

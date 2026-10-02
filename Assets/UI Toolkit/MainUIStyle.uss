@@ -1,0 +1,120 @@
+.main-container {
+    flex-grow: 1;
+    justify-content: space-between;
+}
+
+.top-container {
+    flex-grow: 0;
+    flex-direction: row;
+    align-items: flex-start;
+    height: 15%;
+    justify-content: space-between;
+}
+
+.top-left-container {
+    height: 100%;
+    flex-grow: 0;
+    width: 60%;
+    flex-shrink: 0;
+}
+
+.resources {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: center;
+    background-color: rgb(111, 111, 111);
+    height: 0%;
+}
+
+.resource-icon {
+    flex-shrink: 0;
+}
+
+.verbs {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: flex-start;
+    height: 40%;
+}
+
+.top-right-container {
+    flex-grow: 0;
+    align-items: center;
+    width: 20%;
+    flex-shrink: 0;
+    margin-right: -32px;
+}
+
+.time-controller {
+    flex-grow: 0;
+    flex-direction: row-reverse;
+    width: 80%;
+    align-items: center;
+}
+
+.speed-button {
+    width: 40px;
+}
+
+.speed-bar {
+    width: 66%;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-grow: 0;
+    flex-direction: column;
+    scale: 1 1.5;
+}
+
+.bottom-container {
+    flex-grow: 0;
+    flex-direction: row;
+    align-items: flex-end;
+    height: 10%;
+}
+
+.ledgers {
+    flex-grow: 1;
+    flex-direction: row;
+    height: 60%;
+}
+
+.map-lenses {
+    flex-grow: 1;
+    flex-direction: row-reverse;
+    height: 60%;
+}
+
+.dateText {
+    font-size: 28px;
+    align-self: center;
+}
+
+.resourceText {
+    font-size: 25px;
+    margin-left: 110px;
+}
+
+.button {
+}
+
+.button.ledger {
+    font-size: 20px;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    background-color: rgb(97, 62, 42);
+}
+
+.button.lens {
+    font-size: 20px;
+    background-color: rgb(0, 103, 141);
+}
+
+.button.verb {
+    font-size: 20px;
+    width: 8%;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+}
